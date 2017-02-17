@@ -12,7 +12,7 @@ from litex.soc.cores.uart.bridge import UARTWishboneBridge
 from litex.build.generic_platform import *
 from litex.boards.platforms import kc705
 
-from gtx_7series import GTX_1000BASE_BX10
+from gtx_7series import GTXChannelPLL, GTX
 
 
 _extension_io = [
@@ -64,14 +64,25 @@ class BaseSoC(SoCCore):
                                                   clk_freq, baudrate=115200))
         self.add_wb_master(self.cpu_or_bridge.wishbone)
 
-        gtx = GTX_1000BASE_BX10(platform.request("refclk125"),
-                                        platform.request("sfp_tx"),
-                                        platform.request("sfp_rx"),
-                                        clk_freq,
-                                        clock_div2=True)
+        refclk = Signal()
+        refclk_pads = platform.request("refclk125")
+        self.specials += [
+            Instance("IBUFDS_GTE2",
+                i_CEB=0,
+                i_I=refclk_pads.p,
+                i_IB=refclk_pads.n,
+                o_O=refclk)
+        ]
+        cpll = GTXChannelPLL(refclk, 125e6, 1.25e9)
+        print(cpll)
+        gtx = GTX(cpll,
+                  platform.request("sfp_tx"),
+                  platform.request("sfp_rx"),
+                  clk_freq)
+        self.submodules += cpll, gtx
         counter = Signal(32)
         self.sync += counter.eq(counter + 1)
-        self.submodules += gtx
+
         self.comb += [
             gtx.encoder.k[0].eq(1),
             gtx.encoder.d[0].eq((5 << 5) | 28),

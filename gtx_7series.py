@@ -8,12 +8,91 @@ from line_coding import Encoder, Decoder
 from gtx_7series_init import *
 
 
-class GTX_20X(Module):
-    # The transceiver clock on clock_pads must be at the RTIO clock
-    # frequency when clock_div2=False, and 2x that frequency when
-    # clock_div2=True.
-    def __init__(self, clock_pads, tx_pads, rx_pads, sys_clk_freq,
-                 clock_div2=False):
+class GTXChannelPLL(Module):
+    min_vco_freq = 1.6e9
+    max_vco_freq = 3.3e9
+    n1_values = [4, 5]
+    n2_values = [1, 2, 3, 4, 5]
+    m_values = [1, 2]
+    d_values = [1, 2, 4, 8, 16]
+
+    def __init__(self, refclk, refclk_freq, linerate):
+        self.refclk = refclk
+        self.refclk_freq = refclk_freq
+        self.reset = Signal()
+        self.lock = Signal()
+        self.config = self.compute_config(refclk_freq, linerate)
+
+    @staticmethod
+    def compute_vco_freq(refclk_freq, n1, n2, m):
+        return refclk_freq*(n1*n2)/m
+
+    @staticmethod
+    def compute_linerate(vco_freq, d):
+        return vco_freq*2/d
+
+    @classmethod
+    def compute_config(cls, refclk_freq, linerate):
+        for n1 in cls.n1_values:
+            for n2 in cls.n2_values:
+                for m in cls.m_values:
+                    vco_freq = cls.compute_vco_freq(refclk_freq, n1, n2, m)
+                    if (vco_freq >= cls.min_vco_freq and
+                        vco_freq <= cls.max_vco_freq):
+                        for d in cls.d_values:
+                            if cls.compute_linerate(vco_freq, d) == linerate:
+                                return {"n1": n1, "n2": n2, "m": m, "d": d,
+                                        "vco_freq": vco_freq,
+                                        "clkin": refclk_freq,
+                                        "clkout": vco_freq,
+                                        "linerate": linerate}
+        msg = "No config found for {:3.2f} MHz refclk / {:3.2f} Gbps linerate."
+        raise ValueError(msg.format(refclk_freq/1e6, linerate/1e9))
+
+    def __repr__(self):
+        r = """
+GTXChannel PLL
+==============
+  overview:
+  ---------
+       +--------------------------------------------------+
+       |                                                  |
+       |   +-----+  +---------------------------+ +-----+ |
+       |   |     |  | Phase Frequency Detector  | |     | |
+CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
+       |   |     |  |       Loop Filter         | |     | |
+       |   +-----+  +---------------------------+ +--+--+ |
+       |              ^                              |    |
+       |              |    +-------+    +-------+    |    |
+       |              +----+  /N2  <----+  /N1  <----+    |
+       |                   +-------+    +-------+         |
+       +--------------------------------------------------+
+                            +-------+
+                   CLKOUT +->  2/D  +-> LINERATE
+                            +-------+
+  config:
+  -------
+    CLKIN    = {clkin}MHz
+    CLKOUT   = CLKIN x (N1 x N2) / M = {clkin}MHz x ({n1} x {n2}) / {m}
+             = {clkout}GHz
+    VCO      = {vco_freq}GHz (range: {vco_min} to {vco_max}GHz)
+    LINERATE = CLKOUT x 2 / D = {clkout}GHz x 2 / {d}
+             = {linerate}GHz
+""".format(clkin=self.config["clkin"]/1e6,
+           n1=self.config["n1"],
+           n2=self.config["n2"],
+           m=self.config["m"],
+           clkout=self.config["clkout"]/1e9,
+           vco_freq=self.config["vco_freq"]/1e9,
+           vco_min=self.min_vco_freq/1e9,
+           vco_max=self.max_vco_freq/1e9,
+           d=self.config["d"],
+           linerate=self.config["linerate"]/1e9)
+        return r
+
+
+class GTX(Module):
+    def __init__(self, cpll, tx_pads, rx_pads, sys_clk_freq):
         self.submodules.encoder = ClockDomainsRenamer("rtio")(
             Encoder(2, True))
         self.decoders = [ClockDomainsRenamer("rtio_rx")(
@@ -29,31 +108,14 @@ class GTX_20X(Module):
 
         # # #
 
-        refclk = Signal()
-        if clock_div2:
-            self.specials += Instance("IBUFDS_GTE2",
-                i_CEB=0,
-                i_I=clock_pads.p,
-                i_IB=clock_pads.n,
-                o_ODIV2=refclk
-            )
-        else:
-            self.specials += Instance("IBUFDS_GTE2",
-                i_CEB=0,
-                i_I=clock_pads.p,
-                i_IB=clock_pads.n,
-                o_O=refclk
-            )
-
-        cplllock = Signal()
         # TX generates RTIO clock, init must be in system domain
         tx_init = GTXInit(sys_clk_freq, False)
         # RX receives restart commands from RTIO domain
         rx_init = ClockDomainsRenamer("rtio")(
-            GTXInit(self.rtio_clk_freq, True))
+            GTXInit(cpll.refclk_freq, True))
         self.submodules += tx_init, rx_init
-        self.comb += tx_init.cplllock.eq(cplllock), \
-                     rx_init.cplllock.eq(cplllock)
+        self.comb += tx_init.cplllock.eq(cpll.lock), \
+                     rx_init.cplllock.eq(cpll.lock)
 
         txdata = Signal(20)
         rxdata = Signal(20)
@@ -77,16 +139,16 @@ class GTX_20X(Module):
 
                 # CPLL
                 p_CPLL_CFG=0xBC07DC,
-                p_CPLL_FBDIV=4,
-                p_CPLL_FBDIV_45=5,
-                p_CPLL_REFCLK_DIV=1,
-                p_RXOUT_DIV=2,
-                p_TXOUT_DIV=2,
-                o_CPLLLOCK=cplllock,
+                p_CPLL_FBDIV=cpll.config["n2"],
+                p_CPLL_FBDIV_45=cpll.config["n1"],
+                p_CPLL_REFCLK_DIV=cpll.config["m"],
+                p_RXOUT_DIV=cpll.config["d"],
+                p_TXOUT_DIV=cpll.config["d"],
+                o_CPLLLOCK=cpll.lock,
                 i_CPLLLOCKEN=1,
                 i_CPLLREFCLKSEL=0b001,
                 i_TSTIN=2**20-1,
-                i_GTREFCLK0=refclk,
+                i_GTREFCLK0=cpll.refclk,
 
                 # TX clock
                 p_TXBUF_EN="FALSE",
@@ -186,21 +248,13 @@ class GTX_20X(Module):
             self.decoders[1].input.eq(rxdata[10:])
         ]
 
-        clock_aligner = BruteforceClockAligner(0b0101111100, self.rtio_clk_freq)
+        clock_aligner = BruteforceClockAligner(0b0101111100, cpll.refclk_freq)
         self.submodules += clock_aligner
         self.comb += [
             clock_aligner.rxdata.eq(rxdata),
             rx_init.restart.eq(clock_aligner.restart),
             self.rx_ready.eq(clock_aligner.ready)
         ]
-
-
-class GTX_1000BASE_BX10(GTX_20X):
-    rtio_clk_freq = 62.5e6
-
-
-class GTX_3G(GTX_20X):
-    rtio_clk_freq = 150e6
 
 
 class RXSynchronizer(Module, AutoCSR):
