@@ -2,10 +2,10 @@ from math import ceil
 from functools import reduce
 from operator import add
 
-from migen import *
-from migen.genlib.cdc import MultiReg, PulseSynchronizer
-from migen.genlib.misc import WaitTimer
-from migen.genlib.fsm import FSM
+from litex.gen import *
+from litex.gen.genlib.cdc import MultiReg, PulseSynchronizer
+from litex.gen.genlib.misc import WaitTimer
+from litex.gen.genlib.fsm import FSM
 
 
 class GTXInit(Module):

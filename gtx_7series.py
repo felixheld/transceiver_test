@@ -1,10 +1,9 @@
-from migen import *
-from migen.genlib.resetsync import AsyncResetSynchronizer
+from litex.gen import *
+from litex.gen.genlib.resetsync import AsyncResetSynchronizer
 
-from misoc.cores.code_8b10b import Encoder, Decoder
-from misoc.interconnect.csr import *
+from litex.gen.interconnect.csr import *
 
-from artiq.gateware.drtio.transceiver.gtx_7series_init import *
+from gtx_7series_init import *
 
 
 class GTX_20X(Module):
