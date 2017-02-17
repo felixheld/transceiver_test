@@ -1,7 +1,7 @@
 from litex.gen import *
 from litex.gen.genlib.resetsync import AsyncResetSynchronizer
 
-from litex.gen.interconnect.csr import *
+from litex.soc.interconnect.csr import *
 
 from line_coding import Encoder, Decoder
 
