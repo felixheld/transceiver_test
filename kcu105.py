@@ -52,20 +52,11 @@ class BaseSoC(SoCCore):
         ]
         cpll = GTHChannelPLL(refclk, 125e6, 1.25e9)
         print(cpll)
-        gtx = GTH(cpll,
+        gth = GTH(cpll,
                   platform.request("sfp_tx"),
                   platform.request("sfp_rx"),
                   clk_freq)
-        self.submodules += cpll, gtx
-
-        self.comb += [
-            gtx.encoder.k[0].eq(1),
-            gtx.encoder.d[0].eq((5 << 5) | 28),
-            gtx.encoder.k[1].eq(0),
-            gtx.encoder.d[1].eq(0x5a),
-        ]
-
-        self.comb += platform.request("sfp_tx_disable_n").eq(1)
+        self.submodules += cpll, gth
 
         rtio_counter = Signal(32)
         self.sync.rtio += rtio_counter.eq(rtio_counter + 1)
@@ -74,6 +65,20 @@ class BaseSoC(SoCCore):
         sys_counter = Signal(32)
         self.sync += sys_counter.eq(sys_counter + 1)
         self.comb += platform.request("user_led", 6).eq(sys_counter[26])
+
+        self.comb += [
+            gth.encoder.k[0].eq(1),
+            gth.encoder.d[0].eq((5 << 5) | 28),
+            gth.encoder.k[1].eq(0),
+            gth.encoder.d[1].eq(sys_counter[26:]),
+        ]
+
+        for i in range(4):
+            self.comb += platform.request("user_led", i).eq(gth.encoder.d[1][i])
+
+        self.comb += platform.request("sfp_tx_disable_n").eq(1)
+
+        platform.add_period_constraint(gth.txoutclk, 8.0)
 
 
 def main():
