@@ -66,7 +66,7 @@ class BaseSoC(SoCCore):
 def main():
     platform = kc705.Platform()
     soc = BaseSoC(platform)
-    builder = Builder(soc, output_dir="build", csr_csv="test/csr.csv")
+    builder = Builder(soc, output_dir="build_kc705", csr_csv="test/csr.csv")
     builder.build()
 
 if __name__ == "__main__":

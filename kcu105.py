@@ -79,7 +79,7 @@ class BaseSoC(SoCCore):
 def main():
     platform = kcu105.Platform()
     soc = BaseSoC(platform)
-    builder = Builder(soc, output_dir="build", csr_csv="test/csr.csv")
+    builder = Builder(soc, output_dir="build_kcu105", csr_csv="test/csr.csv")
     builder.build()
 
 
