@@ -9,13 +9,6 @@ from gtx_7series_init import *
 
 
 class GTXChannelPLL(Module):
-    min_vco_freq = 1.6e9
-    max_vco_freq = 3.3e9
-    n1_values = [4, 5]
-    n2_values = [1, 2, 3, 4, 5]
-    m_values = [1, 2]
-    d_values = [1, 2, 4, 8, 16]
-
     def __init__(self, refclk, refclk_freq, linerate):
         self.refclk = refclk
         self.refclk_freq = refclk_freq
@@ -23,28 +16,19 @@ class GTXChannelPLL(Module):
         self.lock = Signal()
         self.config = self.compute_config(refclk_freq, linerate)
 
-    @staticmethod
-    def compute_vco_freq(refclk_freq, n1, n2, m):
-        return refclk_freq*(n1*n2)/m
-
-    @staticmethod
-    def compute_linerate(vco_freq, d):
-        return vco_freq*2/d
-
     @classmethod
-    def compute_config(cls, refclk_freq, linerate):
-        for n1 in cls.n1_values:
-            for n2 in cls.n2_values:
-                for m in cls.m_values:
-                    vco_freq = cls.compute_vco_freq(refclk_freq, n1, n2, m)
-                    if (vco_freq >= cls.min_vco_freq and
-                        vco_freq <= cls.max_vco_freq):
-                        for d in cls.d_values:
-                            if cls.compute_linerate(vco_freq, d) == linerate:
+    def compute_config(self, refclk_freq, linerate):
+        for n1 in 4, 5:
+            for n2 in 1, 2, 3, 4, 5:
+                for m in 1, 2:
+                    vco_freq = refclk_freq*(n1*n2)/m
+                    if 1.6e9 <= vco_freq <= 3.3e9:
+                        for d in 1, 2, 4, 8, 16:
+                            current_linerate = vco_freq*2/d
+                            if current_linerate == linerate:
                                 return {"n1": n1, "n2": n2, "m": m, "d": d,
                                         "vco_freq": vco_freq,
                                         "clkin": refclk_freq,
-                                        "clkout": vco_freq,
                                         "linerate": linerate}
         msg = "No config found for {:3.2f} MHz refclk / {:3.2f} Gbps linerate."
         raise ValueError(msg.format(refclk_freq/1e6, linerate/1e9))
@@ -74,18 +58,14 @@ CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
   -------
     CLKIN    = {clkin}MHz
     CLKOUT   = CLKIN x (N1 x N2) / M = {clkin}MHz x ({n1} x {n2}) / {m}
-             = {clkout}GHz
-    VCO      = {vco_freq}GHz (range: {vco_min} to {vco_max}GHz)
-    LINERATE = CLKOUT x 2 / D = {clkout}GHz x 2 / {d}
+             = {vco_freq}GHz
+    LINERATE = CLKOUT x 2 / D = {vco_freq}GHz x 2 / {d}
              = {linerate}GHz
 """.format(clkin=self.config["clkin"]/1e6,
            n1=self.config["n1"],
            n2=self.config["n2"],
            m=self.config["m"],
-           clkout=self.config["clkout"]/1e9,
            vco_freq=self.config["vco_freq"]/1e9,
-           vco_min=self.min_vco_freq/1e9,
-           vco_max=self.max_vco_freq/1e9,
            d=self.config["d"],
            linerate=self.config["linerate"]/1e9)
         return r
