@@ -63,6 +63,10 @@ class BaseSoC(SoCCore):
 
         self.comb += platform.request("sfp_tx_disable_n").eq(1)
 
+        platform.add_period_constraint(gtx.txoutclk, 8.0)
+        platform.add_period_constraint(gtx.rxoutclk, 8.0)
+
+
 def main():
     platform = kc705.Platform()
     soc = BaseSoC(platform)
