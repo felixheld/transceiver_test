@@ -15,40 +15,6 @@ from litex.boards.platforms import kc705
 from gtx_7series import GTXChannelPLL, GTX
 
 
-_extension_io = [
-    ("refclk125", 0,
-        Subsignal("p", Pins("G8")),
-        Subsignal("n", Pins("G7")),
-    ),
-    ("sma_tx", 0,
-        Subsignal("p", Pins("K2")),
-        Subsignal("n", Pins("K1")),
-    ),
-    ("sma_rx", 0,
-        Subsignal("p", Pins("K6")),
-        Subsignal("n", Pins("K5")),
-    ),
-    ("sfp_tx", 0,
-        Subsignal("p", Pins("H2")),
-        Subsignal("n", Pins("H1")),
-    ),
-    ("sfp_rx", 0,
-        Subsignal("p", Pins("G4")),
-        Subsignal("n", Pins("G3")),
-    ),
-]
-
-
-class Platform(kc705.Platform):
-    def __init__(self, *args, **kwargs):
-        kc705.Platform.__init__(self, *args, **kwargs)
-        self.add_extension(_extension_io)
-        self.add_platform_command("""
-set_property CFGBVS VCCO [current_design]
-set_property CONFIG_VOLTAGE 2.5 [current_design]
-""")
-
-
 class BaseSoC(SoCCore):
     def __init__(self, platform):
         clk_freq = int(1e9/platform.default_clk_period)
@@ -65,7 +31,7 @@ class BaseSoC(SoCCore):
         self.add_wb_master(self.cpu_or_bridge.wishbone)
 
         refclk = Signal()
-        refclk_pads = platform.request("refclk125")
+        refclk_pads = platform.request("sgmii_clock")
         self.specials += [
             Instance("IBUFDS_GTE2",
                 i_CEB=0,
@@ -80,6 +46,7 @@ class BaseSoC(SoCCore):
                   platform.request("sfp_rx"),
                   clk_freq)
         self.submodules += cpll, gtx
+
         counter = Signal(32)
         self.sync += counter.eq(counter + 1)
 
@@ -89,13 +56,15 @@ class BaseSoC(SoCCore):
             gtx.encoder.k[1].eq(0),
             gtx.encoder.d[1].eq(counter[26:]),
         ]
+
         self.comb += platform.request("user_led", 4).eq(gtx.rx_ready)
         for i in range(4):
             self.comb += platform.request("user_led", i).eq(gtx.decoders[1].d[i])
 
+        self.comb += platform.request("sfp_tx_disable_n").eq(1)
 
 def main():
-    platform = Platform()
+    platform = kc705.Platform()
     soc = BaseSoC(platform)
     builder = Builder(soc, output_dir="build", csr_csv="test/csr.csv")
     builder.build()
