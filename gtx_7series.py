@@ -215,33 +215,6 @@ class GTX(Module):
 
                 i_LOOPBACK=0b010 if internal_loopback else 0b000,
 
-  				# TX Configurable Driver Attributes
-                p_TX_DEEMPH0=0,
-                p_TX_DEEMPH1=0,
-                p_TX_EIDLE_ASSERT_DELAY=0b110,
-                p_TX_EIDLE_DEASSERT_DELAY=0b100,
-                p_TX_LOOPBACK_DRIVE_HIZ="FALSE",
-                p_TX_MAINCURSOR_SEL=0,
-                p_TX_DRIVE_MODE="DIRECT",
-                p_TX_MARGIN_FULL_0=0b1001110,
-                p_TX_MARGIN_FULL_1=0b1001001,
-                p_TX_MARGIN_FULL_2=0b1000101,
-                p_TX_MARGIN_FULL_3=0b1000010,
-                p_TX_MARGIN_FULL_4=0b1000000,
-                p_TX_MARGIN_LOW_0=0b1000110,
-                p_TX_MARGIN_LOW_1=0b1000100,
-                p_TX_MARGIN_LOW_2=0b1000010,
-                p_TX_MARGIN_LOW_3=0b1000000,
-                p_TX_MARGIN_LOW_4=0b1000000,
-
-                # TX Receiver Detection Attributes
-                p_TX_RXDETECT_CFG=0x1832,
-                p_TX_RXDETECT_REF=0b100,
-
-                # CPLL Attributes
-                p_CPLL_INIT_CFG=0x00001e,
-                p_CPLL_LOCK_CFG=0x01e8,
-
  				# RX Equalizer Attributes
                 p_RXLPM_HF_CFG=0b00000011110000,
                 p_RXLPM_LF_CFG=0b00000011110000,
@@ -256,14 +229,8 @@ class GTX(Module):
                 p_RX_DFE_UT_CFG=0b10001111000000000,
                 p_RX_DFE_VP_CFG=0b00011111100000011,
 
-                # TX Configurable Driver Attributes
-                p_TX_QPI_STATUS_EN=0,
-
                 # RX Equalizer Attributes
                 p_RX_DFE_KL_CFG2=0b00110011000100000001100000001100,
-
-                # TX Configurable Driver Attributes
-                p_TX_PREDRIVER_MODE=0,
             )
 
         tx_reset_deglitched = Signal()
