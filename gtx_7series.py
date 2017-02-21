@@ -215,21 +215,7 @@ class GTX(Module):
 
                 i_LOOPBACK=0b010 if internal_loopback else 0b000,
 
- 				# RX Equalizer Attributes
-                p_RXLPM_HF_CFG=0b00000011110000,
-                p_RXLPM_LF_CFG=0b00000011110000,
-                p_RX_DFE_GAIN_CFG=0x020fea,
-                p_RX_DFE_H2_CFG=0b000000000000,
-                p_RX_DFE_H3_CFG=0b000001000000,
-                p_RX_DFE_H4_CFG=0b00011110000,
-                p_RX_DFE_H5_CFG=0b00011100000,
-                p_RX_DFE_KL_CFG=0b0000011111110,
-                p_RX_DFE_LPM_CFG=0x0954,
-                p_RX_DFE_LPM_HOLD_DURING_EIDLE=1,
-                p_RX_DFE_UT_CFG=0b10001111000000000,
-                p_RX_DFE_VP_CFG=0b00011111100000011,
-
-                # RX Equalizer Attributes
+                 # RX Equalizer Attributes
                 p_RX_DFE_KL_CFG2=0b00110011000100000001100000001100,
             )
 
