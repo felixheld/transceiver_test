@@ -167,6 +167,9 @@ class GTX(Module):
                 i_TXBUFDIFFCTRL=0b100,
                 i_TXDIFFCTRL=0b1000,
 
+                # Internal Loopback
+                i_LOOPBACK=0b010 if internal_loopback else 0b000,
+
                 # RX Startup/Reset
                 i_GTRXRESET=rx_init.gtXxreset,
                 o_RXRESETDONE=rx_init.Xxresetdone,
@@ -177,6 +180,7 @@ class GTX(Module):
 
                 # RX AFE
                 p_RX_DFE_XYD_CFG=0,
+                p_RX_DFE_KL_CFG2=0x3310180c,
                 i_RXDFEXYDEN=1,
                 i_RXDFEXYDHOLD=0,
                 i_RXDFEXYDOVRDEN=0,
@@ -212,11 +216,6 @@ class GTX(Module):
                 i_GTXRXN=rx_pads.n,
                 o_GTXTXP=tx_pads.p,
                 o_GTXTXN=tx_pads.n,
-
-                i_LOOPBACK=0b010 if internal_loopback else 0b000,
-
-                 # RX Equalizer Attributes
-                p_RX_DFE_KL_CFG2=0b00110011000100000001100000001100,
             )
 
         tx_reset_deglitched = Signal()
