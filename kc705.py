@@ -16,7 +16,7 @@ from gtx_7series import GTXChannelPLL, GTX
 
 
 class BaseSoC(SoCCore):
-    def __init__(self, platform):
+    def __init__(self, platform, medium="sfp"):
         clk_freq = int(1e9/platform.default_clk_period)
         SoCCore.__init__(self, platform, clk_freq,
             cpu_type=None,
@@ -39,15 +39,25 @@ class BaseSoC(SoCCore):
                 i_IB=refclk_pads.n,
                 o_O=refclk)
         ]
+
         rtio_linerate = 1.25e9
         rtio_clk_freq = 125e6
+
         cpll = GTXChannelPLL(refclk, rtio_clk_freq, rtio_linerate)
         print(cpll)
-        gtx = GTX(cpll,
-                  platform.request("sfp_tx"),
-                  platform.request("sfp_rx"),
-                  clk_freq)
-        self.submodules += cpll, gtx
+        self.submodules += cpll
+
+        if medium == "sfp":
+            self.comb += platform.request("sfp_tx_disable_n").eq(1)
+            tx_pads = platform.request("sfp_tx")
+            rx_pads = platform.request("sfp_rx")
+        elif medium == "sma":
+            tx_pads = platform.request("user_sma_mgt_tx")
+            rx_pads = platform.request("user_sma_mgt_rx")
+        else:
+            raise ValueError
+        gtx = GTX(cpll, tx_pads, rx_pads, clk_freq)
+        self.submodules += gtx
 
         counter = Signal(32)
         self.sync += counter.eq(counter + 1)
@@ -62,8 +72,6 @@ class BaseSoC(SoCCore):
         self.comb += platform.request("user_led", 4).eq(gtx.rx_ready)
         for i in range(4):
             self.comb += platform.request("user_led", i).eq(gtx.decoders[1].d[i])
-
-        self.comb += platform.request("sfp_tx_disable_n").eq(1)
 
         platform.add_period_constraint(self.crg.cd_sys.clk, platform.default_clk_period)
         platform.add_period_constraint(gtx.txoutclk, 1/rtio_clk_freq)

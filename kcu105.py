@@ -13,7 +13,7 @@ from gth_ultrascale import GTHChannelPLL, GTH
 
 
 class BaseSoC(SoCCore):
-    def __init__(self, platform):
+    def __init__(self, platform, medium="sfp"):
         clk_freq = int(1e9/platform.default_clk_period)
         SoCCore.__init__(self, platform, clk_freq,
             cpu_type=None,
@@ -50,15 +50,25 @@ class BaseSoC(SoCCore):
                 i_IB=refclk_pads.n,
                 o_O=refclk)
         ]
+
         rtio_linerate = 1.25e9
         rtio_clk_freq = 125e6
+
         cpll = GTHChannelPLL(refclk, rtio_clk_freq, rtio_linerate)
         print(cpll)
-        gth = GTH(cpll,
-                  platform.request("sfp_tx"),
-                  platform.request("sfp_rx"),
-                  clk_freq)
-        self.submodules += cpll, gth
+        self.submodules += cpll
+
+        if medium == "sfp":
+            self.comb += platform.request("sfp_tx_disable_n").eq(1)
+            tx_pads = platform.request("sfp_tx")
+            rx_pads = platform.request("sfp_rx")
+        elif medium == "sma":
+            tx_pads = platform.request("user_sma_mgt_tx")
+            rx_pads = platform.request("user_sma_mgt_rx")
+        else:
+            raise ValueError
+        gth = GTH(cpll, tx_pads, rx_pads, clk_freq)
+        self.submodules += gth
 
         rtio_counter = Signal(32)
         self.sync.rtio += rtio_counter.eq(rtio_counter + 1)
@@ -77,8 +87,6 @@ class BaseSoC(SoCCore):
 
         for i in range(4):
             self.comb += platform.request("user_led", i).eq(gth.encoder.d[1][i])
-
-        self.comb += platform.request("sfp_tx_disable_n").eq(1)
 
         platform.add_period_constraint(self.crg.cd_sys.clk, platform.default_clk_period)
         platform.add_period_constraint(gth.txoutclk, 1/rtio_clk_freq)
