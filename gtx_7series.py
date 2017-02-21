@@ -213,7 +213,112 @@ class GTX(Module):
                 o_GTXTXP=tx_pads.p,
                 o_GTXTXN=tx_pads.n,
 
-                i_LOOPBACK=0b010 if internal_loopback else 0b000
+                i_LOOPBACK=0b010 if internal_loopback else 0b000,
+
+                # RX Clock Correction Attributes
+                p_CBCC_DATA_SOURCE_SEL="DECODED",
+                p_CLK_COR_SEQ_2_USE="FALSE",
+                p_CLK_COR_KEEP_IDLE="FALSE",
+                p_CLK_COR_MAX_LAT=9,
+                p_CLK_COR_MIN_LAT=7,
+                p_CLK_COR_PRECEDENCE="TRUE",
+                p_CLK_COR_REPEAT_WAIT=0,
+                p_CLK_COR_SEQ_LEN=1,
+                p_CLK_COR_SEQ_1_2=0b0000000000,
+                p_CLK_COR_SEQ_1_3=0b0000000000,
+                p_CLK_COR_SEQ_1_4=0b0000000000,
+                p_CLK_COR_SEQ_2_2=0b0000000000,
+                p_CLK_COR_SEQ_2_3=0b0000000000,
+                p_CLK_COR_SEQ_2_4=0b0000000000,
+
+                # RX Margin Analysis Attributes
+                p_ES_CONTROL=0,
+                p_ES_ERRDET_EN="FALSE",
+                p_ES_EYE_SCAN_EN="TRUE",
+                p_ES_HORZ_OFFSET=0,
+                p_ES_PMA_CFG=0,
+                p_ES_PRESCALE=0,
+                p_ES_QUALIFIER=0,
+                p_ES_QUAL_MASK=0,
+                p_ES_SDATA_MASK=0,
+                p_ES_VERT_OFFSET=0,
+
+   				# PMA Attributes
+                p_OUTREFCLK_SEL_INV=0b11,
+                p_DMONITOR_CFG=0xA00,
+                p_RX_CM_SEL=0b11,
+                p_RX_DEBUG_CFG=0,
+                p_TERM_RCAL_CFG=0b10000,
+                p_TERM_RCAL_OVRD=0,
+                p_TST_RSV=0,
+                p_UCODEER_CLR=0,
+
+                # CDR Attributes
+                p_RXCDR_FR_RESET_ON_EIDLE=0,
+                p_RXCDR_HOLD_DURING_EIDLE=0,
+                p_RXCDR_PH_RESET_ON_EIDLE=0,
+                p_RXCDR_LOCK_CFG=0b010101,
+
+                # RX Initialization and Reset Attributes
+                p_RXCDRFREQRESET_TIME=1,
+                p_RXCDRPHRESET_TIME=1,
+                p_RXISCANRESET_TIME=1,
+                p_RXPCSRESET_TIME=1,
+                p_RXPMARESET_TIME=3,
+
+                # RX Gearbox Attributes
+                p_RXGEARBOX_EN="FALSE",
+                p_GEARBOX_MODE=0,
+
+  				# TX Configurable Driver Attributes
+                p_TX_DEEMPH0=0,
+                p_TX_DEEMPH1=0,
+                p_TX_EIDLE_ASSERT_DELAY=0b110,
+                p_TX_EIDLE_DEASSERT_DELAY=0b100,
+                p_TX_LOOPBACK_DRIVE_HIZ="FALSE",
+                p_TX_MAINCURSOR_SEL=0,
+                p_TX_DRIVE_MODE="DIRECT",
+                p_TX_MARGIN_FULL_0=0b1001110,
+                p_TX_MARGIN_FULL_1=0b1001001,
+                p_TX_MARGIN_FULL_2=0b1000101,
+                p_TX_MARGIN_FULL_3=0b1000010,
+                p_TX_MARGIN_FULL_4=0b1000000,
+                p_TX_MARGIN_LOW_0=0b1000110,
+                p_TX_MARGIN_LOW_1=0b1000100,
+                p_TX_MARGIN_LOW_2=0b1000010,
+                p_TX_MARGIN_LOW_3=0b1000000,
+                p_TX_MARGIN_LOW_4=0b1000000,
+
+                # TX Receiver Detection Attributes
+                p_TX_RXDETECT_CFG=0x1832,
+                p_TX_RXDETECT_REF=0b100,
+
+                # CPLL Attributes
+                p_CPLL_INIT_CFG=0x00001e,
+                p_CPLL_LOCK_CFG=0x01e8,
+
+ 				# RX Equalizer Attributes
+                p_RXLPM_HF_CFG=0b00000011110000,
+                p_RXLPM_LF_CFG=0b00000011110000,
+                p_RX_DFE_GAIN_CFG=0x020fea,
+                p_RX_DFE_H2_CFG=0b000000000000,
+                p_RX_DFE_H3_CFG=0b000001000000,
+                p_RX_DFE_H4_CFG=0b00011110000,
+                p_RX_DFE_H5_CFG=0b00011100000,
+                p_RX_DFE_KL_CFG=0b0000011111110,
+                p_RX_DFE_LPM_CFG=0x0954,
+                p_RX_DFE_LPM_HOLD_DURING_EIDLE=1,
+                p_RX_DFE_UT_CFG=0b10001111000000000,
+                p_RX_DFE_VP_CFG=0b00011111100000011,
+
+                # TX Configurable Driver Attributes
+                p_TX_QPI_STATUS_EN=0,
+
+                # RX Equalizer Attributes
+                p_RX_DFE_KL_CFG2=0b00110011000100000001100000001100,
+
+                # TX Configurable Driver Attributes
+                p_TX_PREDRIVER_MODE=0,
             )
 
         tx_reset_deglitched = Signal()
