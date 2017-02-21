@@ -72,7 +72,8 @@ CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
 
 
 class GTX(Module):
-    def __init__(self, cpll, tx_pads, rx_pads, sys_clk_freq):
+    def __init__(self, cpll, tx_pads, rx_pads, sys_clk_freq,
+    	         internal_loopback=False):
         self.submodules.encoder = ClockDomainsRenamer("rtio")(
             Encoder(2, True))
         self.decoders = [ClockDomainsRenamer("rtio_rx")(
@@ -211,6 +212,8 @@ class GTX(Module):
                 i_GTXRXN=rx_pads.n,
                 o_GTXTXP=tx_pads.p,
                 o_GTXTXN=tx_pads.n,
+
+                i_LOOPBACK=0b010 if internal_loopback else 0b000
             )
 
         tx_reset_deglitched = Signal()
