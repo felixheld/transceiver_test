@@ -97,6 +97,14 @@ class GTX(Module):
         self.comb += tx_init.cplllock.eq(cpll.lock), \
                      rx_init.cplllock.eq(cpll.lock)
 
+        assert cpll.config["linerate"] < 6.6e9
+        rxcdr_cfgs = {
+            1 : 0x03000023ff10400020,
+            2 : 0x03000023ff10200020,
+            4 : 0x03000023ff10100020,
+            8 : 0x03000023ff10080020
+        }
+
         txdata = Signal(20)
         rxdata = Signal(20)
         self.specials += \
@@ -182,7 +190,7 @@ class GTX(Module):
                 o_RXOUTCLK=self.rxoutclk,
                 i_RXUSRCLK=ClockSignal("rtio_rx"),
                 i_RXUSRCLK2=ClockSignal("rtio_rx"),
-                p_RXCDR_CFG=0x03000023FF10100020,
+                p_RXCDR_CFG=rxcdr_cfgs[cpll.config["d"]],
 
                 # RX Clock Correction Attributes
                 p_CLK_CORRECT_USE="FALSE",
