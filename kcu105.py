@@ -50,7 +50,9 @@ class BaseSoC(SoCCore):
                 i_IB=refclk_pads.n,
                 o_O=refclk)
         ]
-        cpll = GTHChannelPLL(refclk, 125e6, 1.25e9)
+        rtio_linerate = 1.25e9
+        rtio_clk_freq = 125e6
+        cpll = GTHChannelPLL(refclk, rtio_clk_freq, rtio_linerate)
         print(cpll)
         gth = GTH(cpll,
                   platform.request("sfp_tx"),
@@ -78,7 +80,11 @@ class BaseSoC(SoCCore):
 
         self.comb += platform.request("sfp_tx_disable_n").eq(1)
 
-        platform.add_period_constraint(gth.txoutclk, 8.0)
+        platform.add_period_constraint(self.crg.cd_sys.clk, platform.default_clk_period)
+        platform.add_period_constraint(gth.txoutclk, 1/rtio_clk_freq)
+        self.platform.add_false_path_constraints(
+            self.crg.cd_sys.clk,
+            gth.txoutclk)
 
 
 def main():
