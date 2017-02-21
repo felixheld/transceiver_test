@@ -215,61 +215,6 @@ class GTX(Module):
 
                 i_LOOPBACK=0b010 if internal_loopback else 0b000,
 
-                # RX Clock Correction Attributes
-                p_CBCC_DATA_SOURCE_SEL="DECODED",
-                p_CLK_COR_SEQ_2_USE="FALSE",
-                p_CLK_COR_KEEP_IDLE="FALSE",
-                p_CLK_COR_MAX_LAT=9,
-                p_CLK_COR_MIN_LAT=7,
-                p_CLK_COR_PRECEDENCE="TRUE",
-                p_CLK_COR_REPEAT_WAIT=0,
-                p_CLK_COR_SEQ_LEN=1,
-                p_CLK_COR_SEQ_1_2=0b0000000000,
-                p_CLK_COR_SEQ_1_3=0b0000000000,
-                p_CLK_COR_SEQ_1_4=0b0000000000,
-                p_CLK_COR_SEQ_2_2=0b0000000000,
-                p_CLK_COR_SEQ_2_3=0b0000000000,
-                p_CLK_COR_SEQ_2_4=0b0000000000,
-
-                # RX Margin Analysis Attributes
-                p_ES_CONTROL=0,
-                p_ES_ERRDET_EN="FALSE",
-                p_ES_EYE_SCAN_EN="TRUE",
-                p_ES_HORZ_OFFSET=0,
-                p_ES_PMA_CFG=0,
-                p_ES_PRESCALE=0,
-                p_ES_QUALIFIER=0,
-                p_ES_QUAL_MASK=0,
-                p_ES_SDATA_MASK=0,
-                p_ES_VERT_OFFSET=0,
-
-   				# PMA Attributes
-                p_OUTREFCLK_SEL_INV=0b11,
-                p_DMONITOR_CFG=0xA00,
-                p_RX_CM_SEL=0b11,
-                p_RX_DEBUG_CFG=0,
-                p_TERM_RCAL_CFG=0b10000,
-                p_TERM_RCAL_OVRD=0,
-                p_TST_RSV=0,
-                p_UCODEER_CLR=0,
-
-                # CDR Attributes
-                p_RXCDR_FR_RESET_ON_EIDLE=0,
-                p_RXCDR_HOLD_DURING_EIDLE=0,
-                p_RXCDR_PH_RESET_ON_EIDLE=0,
-                p_RXCDR_LOCK_CFG=0b010101,
-
-                # RX Initialization and Reset Attributes
-                p_RXCDRFREQRESET_TIME=1,
-                p_RXCDRPHRESET_TIME=1,
-                p_RXISCANRESET_TIME=1,
-                p_RXPCSRESET_TIME=1,
-                p_RXPMARESET_TIME=3,
-
-                # RX Gearbox Attributes
-                p_RXGEARBOX_EN="FALSE",
-                p_GEARBOX_MODE=0,
-
   				# TX Configurable Driver Attributes
                 p_TX_DEEMPH0=0,
                 p_TX_DEEMPH1=0,
