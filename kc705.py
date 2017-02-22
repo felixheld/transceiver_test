@@ -51,12 +51,15 @@ class BaseSoC(SoCCore):
             self.comb += platform.request("sfp_tx_disable_n").eq(1)
             tx_pads = platform.request("sfp_tx")
             rx_pads = platform.request("sfp_rx")
+            polarity = 1 # https://www.xilinx.com/support/answers/46614.html...
         elif medium == "sma":
             tx_pads = platform.request("user_sma_mgt_tx")
             rx_pads = platform.request("user_sma_mgt_rx")
+            polarity = 0
         else:
             raise ValueError
-        gtx = GTX(cpll, tx_pads, rx_pads, clk_freq)
+        gtx = GTX(cpll, tx_pads, rx_pads, clk_freq,
+            tx_polarity=polarity, rx_polarity=polarity)
         self.submodules += gtx
 
         counter = Signal(32)

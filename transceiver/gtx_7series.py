@@ -75,7 +75,7 @@ CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
 class GTX(Module):
     def __init__(self, cpll, tx_pads, rx_pads, sys_clk_freq,
                  clock_aligner=True, internal_loopback=False,
-                 tx_polarity=0, rx_polariy=0):
+                 tx_polarity=0, rx_polarity=0):
         self.submodules.encoder = ClockDomainsRenamer("rtio")(
             Encoder(2, True))
         self.decoders = [ClockDomainsRenamer("rtio_rx")(
