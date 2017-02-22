@@ -94,8 +94,11 @@ class GTX(Module):
         rx_init = ClockDomainsRenamer("rtio")(
             GTXInit(cpll.refclk_freq, True))
         self.submodules += tx_init, rx_init
-        self.comb += tx_init.cplllock.eq(cpll.lock), \
-                     rx_init.cplllock.eq(cpll.lock)
+        self.comb += [
+            tx_init.plllock.eq(cpll.lock),
+            rx_init.plllock.eq(cpll.lock),
+            cpll.reset.eq(tx_init.pllreset)
+        ]
 
         assert cpll.config["linerate"] < 6.6e9
         rxcdr_cfgs = {

@@ -84,7 +84,10 @@ class GTH(Module):
         # TX generates RTIO clock, init must be in system domain
         tx_init = GTHInit(sys_clk_freq, False)
         self.submodules += tx_init
-        self.comb += tx_init.plllock.eq(cpll.lock)
+        self.comb += [
+            tx_init.plllock.eq(cpll.lock),
+            cpll.reset.eq(tx_init.pllreset)
+        ]
 
         txdata = Signal(20)
         self.specials += \
