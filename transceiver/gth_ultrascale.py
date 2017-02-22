@@ -102,7 +102,7 @@ class GTH(Module):
         self.comb += [
             tx_init.plllock.eq(cpll.lock),
             rx_init.plllock.eq(cpll.lock),
-            cpll.reset.eq(tx_init.pllreset)
+            cpll.reset.eq(tx_init.pllreset | rx_init.pllreset)
         ]
         self.rx_init = rx_init
 
@@ -116,7 +116,7 @@ class GTH(Module):
 
                 # PMA Attributes
                 p_PMA_RSV1=0xf000,
-                p_RX_BIAS_CFG0=0x0AB4,
+                p_RX_BIAS_CFG0=0x0AD4,
                 p_RX_CM_TRIM=0b1010,
                 p_RX_CLK25_DIV=5,
                 p_TX_CLK25_DIV=5,
@@ -127,9 +127,9 @@ class GTH(Module):
                 p_PD_TRANS_TIME_TO_P2=0x64,
 
                 # CPLL
-                p_CPLL_CFG0=0x67f8,
-                p_CPLL_CFG1=0xa4ac,
-                p_CPLL_CFG2=0x0007,
+                p_CPLL_CFG0=0x20f8,
+                p_CPLL_CFG1=0xa494,
+                p_CPLL_CFG2=0xf001,
                 p_CPLL_CFG3=0x0000,
                 p_CPLL_FBDIV=cpll.config["n2"],
                 p_CPLL_FBDIV_45=cpll.config["n1"],
@@ -199,6 +199,7 @@ class GTH(Module):
                 p_RX_XCLK_SEL="RXUSR",
                 i_RXSYSCLKSEL=0b00,
                 i_RXOUTCLKSEL=0b010,
+                i_RXPLLCLKSEL=0b00,
                 o_RXOUTCLK=self.rxoutclk,
                 i_RXUSRCLK=ClockSignal("rtio_rx"),
                 i_RXUSRCLK2=ClockSignal("rtio_rx"),
@@ -227,7 +228,7 @@ class GTH(Module):
                 o_GTHTXP=tx_pads.p,
                 o_GTHTXN=tx_pads.n,
 
-                p_ADAPT_CFG0=0x800,
+                p_ADAPT_CFG0=0xf800,
                 p_ALIGN_COMMA_ENABLE=0b1111111111,
                 p_ALIGN_COMMA_WORD=2,
                 p_CBCC_DATA_SOURCE_SEL="ENCODED",
@@ -243,21 +244,23 @@ class GTH(Module):
                 p_RXBUFRESET_TIME=3,
                 p_RXBUF_ADDR_MODE="FAST",
                 p_RXBUF_THRESH_UNDFLW=0,
-                p_RXCDR_CFG1=0x0000,
-                p_RXCDR_CFG2=0x7c6,
+
+                p_RXCDR_CFG1=0x0080,
+                p_RXCDR_CFG2=0x07E6,
 
                 p_RXCDR_LOCK_CFG0=0x4480,
-                p_RXCDR_LOCK_CFG1=0x5FFF,
-                p_RXCDR_LOCK_CFG2=0x77C3,
+                p_RXCDR_LOCK_CFG1=0x07E0,
+                p_RXCDR_LOCK_CFG2=0x7C42,
 
                 p_RXCFOK_CFG0=0x4000,
-                p_RXCFOK_CFG1=0x0065,
-                p_RXCFOK_CFG2=0x002E,
+                p_RXCFOK_CFG1=0x0060,
+                p_RXCFOK_CFG2=0x000e,
 
                 p_RXDFE_CFG0=0x0A00,
                 p_RXDFE_CFG1=0x0000,
+
                 p_RXDFE_GC_CFG0=0x0000,
-                p_RXDFE_GC_CFG1=0x7870,
+                p_RXDFE_GC_CFG1=0x7840,
                 p_RXDFE_GC_CFG2=0x0000,
                 p_RXDFE_H2_CFG0=0x0000,
                 p_RXDFE_H2_CFG1=0x0000,
@@ -309,7 +312,8 @@ class GTH(Module):
                 p_RX_DFELPM_CFG1=0b1,
 
                 p_RX_DFE_AGC_CFG0=0b10,
-                p_RX_DFE_AGC_CFG1=0b000,
+                p_RX_DFE_AGC_CFG1=0b100,
+
                 p_RX_DFE_KL_LPM_KH_CFG0=0b01,
                 p_RX_DFE_KL_LPM_KH_CFG1=0b000,
                 p_RX_DFE_KL_LPM_KL_CFG0=0b01,
@@ -321,9 +325,16 @@ class GTH(Module):
                 p_RX_SUM_RES_CTRL=0b11,
                 p_RX_TUNE_AFE_OS=0b10,
 
-                # ^^^^no effect^,
-                i_RX8B10BEN=0,
+                #i_RXDLYBYPASS=1,
+                #i_RXELECIDLEMODE=0b11,
+                #i_RXMCOMMAALIGNEN=1,
+                #i_RXPCOMMAALIGNEN=1,
+                #i_RXOSINTCFG=0b1101,
+                #i_RXOSINTEN=1,
+                #i_RXPHDLYPD=1,
 
+                p_RXSYNC_MULTILANE=0,
+                p_RXSYNC_OVRD=0
             )
 
         tx_reset_deglitched = Signal()
