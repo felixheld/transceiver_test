@@ -72,7 +72,7 @@ CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
 
 class GTX(Module):
     def __init__(self, cpll, tx_pads, rx_pads, sys_clk_freq,
-    	         internal_loopback=False):
+    	         clock_aligner=True, internal_loopback=False):
         self.submodules.encoder = ClockDomainsRenamer("rtio")(
             Encoder(2, True))
         self.decoders = [ClockDomainsRenamer("rtio_rx")(
@@ -250,13 +250,16 @@ class GTX(Module):
             self.decoders[1].input.eq(rxdata[10:])
         ]
 
-        clock_aligner = BruteforceClockAligner(0b0101111100, cpll.refclk_freq)
-        self.submodules += clock_aligner
-        self.comb += [
-            clock_aligner.rxdata.eq(rxdata),
-            rx_init.restart.eq(clock_aligner.restart),
-            self.rx_ready.eq(clock_aligner.ready)
-        ]
+        if clock_aligner:
+            clock_aligner = BruteforceClockAligner(0b0101111100, cpll.refclk_freq)
+            self.submodules += clock_aligner
+            self.comb += [
+                clock_aligner.rxdata.eq(rxdata),
+                rx_init.restart.eq(clock_aligner.restart),
+                self.rx_ready.eq(clock_aligner.ready)
+            ]
+        else:
+            self.rx_ready.eq(rx_init.done)
 
 
 class RXSynchronizer(Module, AutoCSR):

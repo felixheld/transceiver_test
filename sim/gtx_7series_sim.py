@@ -57,7 +57,7 @@ class GTXSim(Module):
 
         tx_pads = platform.request("gtx_tx")
         rx_pads = platform.request("gtx_rx")
-        gtx = GTX(cpll, tx_pads, rx_pads, clk_freq)
+        gtx = GTX(cpll, tx_pads, rx_pads, clk_freq, clock_aligner=False)
         self.submodules += gtx
 
         counter = Signal(8)
