@@ -77,8 +77,9 @@ class BaseSoC(SoCCore):
             gth.encoder.d[1].eq(counter[26:]),
         ]
 
+        self.comb += platform.request("user_led", 4).eq(gth.rx_ready)
         for i in range(4):
-            self.comb += platform.request("user_led", i).eq(gth.encoder.d[1][i])
+            self.comb += platform.request("user_led", i).eq(gth.decoders[1].d[i])
 
         platform.add_period_constraint(self.crg.cd_sys.clk, platform.default_clk_period)
         platform.add_period_constraint(gth.txoutclk, 1/rtio_clk_freq)
@@ -90,9 +91,9 @@ class BaseSoC(SoCCore):
         self.sync.rtio += rtio_counter.eq(rtio_counter + 1)
         self.comb += platform.request("user_led", 7).eq(rtio_counter[26])
 
-        #rtio_rx_counter = Signal(32)
-        #self.sync.rtio_rx += rtio_rx_counter.eq(rtio_rx_counter + 1)
-        #self.comb += platform.request("user_led", 6).eq(rtio_rx_counter[26])
+        rtio_rx_counter = Signal(32)
+        self.sync.rtio_rx += rtio_rx_counter.eq(rtio_rx_counter + 1)
+        self.comb += platform.request("user_led", 6).eq(rtio_rx_counter[26])
 
 
 def main():

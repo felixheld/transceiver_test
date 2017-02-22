@@ -74,13 +74,20 @@ CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
 
 class GTH(Module):
     def __init__(self, cpll, tx_pads, rx_pads, sys_clk_freq,
-                 tx_polarity=0):
+                 clock_aligner=True, internal_loopback=False,
+                 tx_polarity=0, rx_polarity=0):
         self.submodules.encoder = ClockDomainsRenamer("rtio")(
             Encoder(2, True))
+        self.decoders = [ClockDomainsRenamer("rtio_rx")(
+            Decoder(True)) for _ in range(2)]
+        self.submodules += self.decoders
+
+        self.rx_ready = Signal()
 
         # transceiver direct clock outputs
         # useful to specify clock constraints in a way palatable to Vivado
         self.txoutclk = Signal()
+        self.rxoutclk = Signal()
 
         # # #
 
@@ -88,13 +95,18 @@ class GTH(Module):
 
         # TX generates RTIO clock, init must be in system domain
         tx_init = GTHInit(sys_clk_freq, False)
-        self.submodules += tx_init
+        # RX receives restart commands from RTIO domain
+        rx_init = ClockDomainsRenamer("rtio")(
+            GTHInit(cpll.refclk_freq, True))
+        self.submodules += tx_init, rx_init
         self.comb += [
             tx_init.plllock.eq(cpll.lock),
+            rx_init.plllock.eq(cpll.lock),
             cpll.reset.eq(tx_init.pllreset)
         ]
 
         txdata = Signal(20)
+        rxdata = Signal(20)
         self.specials += \
             Instance("GTHE3_CHANNEL",
                 # Reset modes
@@ -145,9 +157,6 @@ class GTH(Module):
                 i_TXPLLCLKSEL=0b00,
                 i_TXOUTCLKSEL=0b11,
 
-                # disable RX
-                i_RXPD=0b11,
-
                 # TX Startup/Reset
                 i_GTTXRESET=tx_init.gtXxreset,
                 o_TXRESETDONE=tx_init.Xxresetdone,
@@ -169,12 +178,53 @@ class GTH(Module):
                 i_TXBUFDIFFCTRL=0b000,
                 i_TXDIFFCTRL=0b1100,
 
+                # Internal Loopback
+                i_LOOPBACK=0b010 if internal_loopback else 0b000,
+
+                # RX Startup/Reset
+                i_GTRXRESET=rx_init.gtXxreset,
+                o_RXRESETDONE=rx_init.Xxresetdone,
+                i_RXDLYSRESET=rx_init.Xxdlysreset,
+                o_RXDLYSRESETDONE=rx_init.Xxdlysresetdone,
+                o_RXPHALIGNDONE=rx_init.Xxphaligndone,
+                i_RXUSERRDY=rx_init.Xxuserrdy,
+
+                # RX AFE
+                i_RXDFEXYDEN=1,
+                i_RXLPMEN=0,
+
+                # RX clock
+                p_RXBUF_EN="FALSE",
+                p_RX_XCLK_SEL="RXUSR",
+                i_RXSYSCLKSEL=0b00,
+                i_RXOUTCLKSEL=0b010,
+                o_RXOUTCLK=self.rxoutclk,
+                i_RXUSRCLK=ClockSignal("rtio_rx"),
+                i_RXUSRCLK2=ClockSignal("rtio_rx"),
+
+                # RX Clock Correction Attributes
+                p_CLK_CORRECT_USE="FALSE",
+                p_CLK_COR_SEQ_1_1=0b0100000000,
+                p_CLK_COR_SEQ_2_1=0b0100000000,
+                p_CLK_COR_SEQ_1_ENABLE=0b1111,
+                p_CLK_COR_SEQ_2_ENABLE=0b1111,
+
+                # RX data
+                p_RX_DATA_WIDTH=20,
+                p_RX_INT_DATAWIDTH=0,
+                o_RXCTRL0=Cat(rxdata[8], rxdata[18]),
+                o_RXCTRL1=Cat(rxdata[9], rxdata[19]),
+                o_RXDATA=Cat(rxdata[:8], rxdata[10:18]),
+
                 # Polarity
                 i_TXPOLARITY=tx_polarity,
+                i_RXPOLARITY=rx_polarity,
 
                 # Pads
+                i_GTHRXP=rx_pads.p,
+                i_GTHRXN=rx_pads.n,
                 o_GTHTXP=tx_pads.p,
-                o_GTHTXN=tx_pads.n
+                o_GTHTXN=tx_pads.n,
             )
 
         tx_reset_deglitched = Signal()
@@ -185,7 +235,30 @@ class GTH(Module):
             Instance("BUFG_GT", i_I=self.txoutclk, o_O=self.cd_rtio.clk),
             AsyncResetSynchronizer(self.cd_rtio, tx_reset_deglitched)
         ]
+        rx_reset_deglitched = Signal()
+        rx_reset_deglitched.attr.add("no_retiming")
+        self.sync.rtio += rx_reset_deglitched.eq(~rx_init.done)
+        self.clock_domains.cd_rtio_rx = ClockDomain()
+        self.specials += [
+            Instance("BUFG_GT", i_I=self.rxoutclk, o_O=self.cd_rtio_rx.clk),
+            AsyncResetSynchronizer(self.cd_rtio_rx, rx_reset_deglitched)
+        ]
 
         self.comb += [
             txdata.eq(Cat(self.encoder.output[0], self.encoder.output[1])),
+            self.decoders[0].input.eq(rxdata[:10]),
+            self.decoders[1].input.eq(rxdata[10:])
         ]
+
+        if clock_aligner:
+            clock_aligner = BruteforceClockAligner(0b0101111100, cpll.refclk_freq)
+            self.submodules += clock_aligner
+            self.comb += [
+                clock_aligner.rxdata.eq(rxdata),
+                rx_init.restart.eq(clock_aligner.restart),
+                self.rx_ready.eq(clock_aligner.ready)
+            ]
+        else:
+            self.rx_ready.eq(rx_init.done)
+
+
