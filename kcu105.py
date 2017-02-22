@@ -27,11 +27,14 @@ class BaseSoC(SoCCore):
                                                   clk_freq, baudrate=115200))
         self.add_wb_master(self.cpu_or_bridge.wishbone)
 
-        # 62.5MHz clock -> user_sma --> user_sma_mgt_refclk
+        # 125MHz clock -> user_sma --> user_sma_mgt_refclk
         user_sma_clock_pads = platform.request("user_sma_clock")
         user_sma_clock = Signal()
-        self.sync += user_sma_clock.eq(~user_sma_clock)
         self.specials += [
+            Instance("ODDRE1",
+                i_D1=0, i_D2=1, i_SR=0,
+                i_C=ClockSignal(),
+                o_Q=user_sma_clock),
             Instance("OBUFDS",
                 i_I=user_sma_clock,
                 o_O=user_sma_clock_pads.p,
@@ -48,8 +51,8 @@ class BaseSoC(SoCCore):
                 o_O=refclk)
         ]
 
-        rtio_linerate = 1.25e9
-        rtio_clk_freq = 62.5e6
+        rtio_linerate = 2.5e9
+        rtio_clk_freq = 125e6
 
         cpll = GTHChannelPLL(refclk, rtio_clk_freq, rtio_linerate)
         print(cpll)
