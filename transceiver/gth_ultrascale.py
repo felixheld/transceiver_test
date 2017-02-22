@@ -21,7 +21,9 @@ class GTHChannelPLL(Module):
             for n2 in 1, 2, 3, 4, 5:
                 for m in 1, 2:
                     vco_freq = refclk_freq*(n1*n2)/m
-                    if 2.0e9 <= vco_freq <= 6.25e9:
+                    print(vco_freq/1e9)
+                    #if 2.0e9 <= vco_freq <= 6.25e9:
+                    if vco_freq <= 6.25e9:
                         for d in 1, 2, 4, 8, 16:
                             current_linerate = vco_freq*2/d
                             if current_linerate == linerate:
@@ -97,6 +99,8 @@ class GTH(Module):
                 # Reset modes
                 i_GTRESETSEL=0,
                 i_RESETOVRD=0,
+
+                i_TXPOLARITY=1,
 
                 # PMA Attributes
                 p_PMA_RSV1=0xf800,

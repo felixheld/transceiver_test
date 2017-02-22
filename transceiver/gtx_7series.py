@@ -21,7 +21,9 @@ class GTXChannelPLL(Module):
             for n2 in 1, 2, 3, 4, 5:
                 for m in 1, 2:
                     vco_freq = refclk_freq*(n1*n2)/m
-                    if 1.6e9 <= vco_freq <= 3.3e9:
+                    print(vco_freq/1e9)
+                    #if 1.6e9 <= vco_freq <= 3.3e9:
+                    if vco_freq <= 3.3e9:
                         for d in 1, 2, 4, 8, 16:
                             current_linerate = vco_freq*2/d
                             if current_linerate == linerate:
@@ -189,7 +191,7 @@ class GTX(Module):
 				# (2) SFP copper loopback
 				# Xilinx's default value: 0x3008e56a
 				#p_RX_DFE_KL_CFG2=0x3008e56a, # (1): errors+++, (2): errors+
-                #p_RX_DFE_KL_CFG2=0x3310180c, # (1): working, (2): not working
+                p_RX_DFE_KL_CFG2=0x3310180c, # (1): working, (2): not working
                 #p_RX_DFE_KL_CFG2=0x3010d90c, # (1): errors+, (2): not working
                 #p_RX_DFE_KL_CFG2=0x301148ac, # (1): errors+, (2): not working
                 i_RXDFEXYDEN=1,
