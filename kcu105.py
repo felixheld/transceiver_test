@@ -9,7 +9,7 @@ from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
 from litex.soc.cores.uart.bridge import UARTWishboneBridge
 
-from gth_ultrascale import GTHChannelPLL, GTH
+from transceiver.gth_ultrascale import GTHChannelPLL, GTH
 
 
 class BaseSoC(SoCCore):

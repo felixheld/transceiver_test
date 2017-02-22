@@ -3,9 +3,8 @@ from litex.gen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.soc.interconnect.csr import *
 
-from line_coding import Encoder, Decoder
-
-from gtx_7series_init import *
+from transceiver.line_coding import Encoder, Decoder
+from transceiver.gtx_7series_init import *
 
 
 class GTXChannelPLL(Module):

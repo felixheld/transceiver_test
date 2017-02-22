@@ -3,9 +3,8 @@ from litex.gen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.soc.interconnect.csr import *
 
-from line_coding import Encoder, Decoder
-
-from gth_ultrascale_init import *
+from transceiver.line_coding import Encoder, Decoder
+from transceiver.gth_ultrascale_init import *
 
 
 class GTHChannelPLL(Module):

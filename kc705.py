@@ -12,7 +12,7 @@ from litex.soc.cores.uart.bridge import UARTWishboneBridge
 from litex.build.generic_platform import *
 from litex.boards.platforms import kc705
 
-from gtx_7series import GTXChannelPLL, GTX
+from transceiver.gtx_7series import GTXChannelPLL, GTX
 
 
 class BaseSoC(SoCCore):
