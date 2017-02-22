@@ -67,19 +67,14 @@ class BaseSoC(SoCCore):
         gth = GTH(cpll, tx_pads, rx_pads, clk_freq)
         self.submodules += gth
 
-        rtio_counter = Signal(32)
-        self.sync.rtio += rtio_counter.eq(rtio_counter + 1)
-        self.comb += platform.request("user_led", 7).eq(rtio_counter[26])
-
-        sys_counter = Signal(32)
-        self.sync += sys_counter.eq(sys_counter + 1)
-        self.comb += platform.request("user_led", 6).eq(sys_counter[26])
+        counter = Signal(32)
+        self.sync += counter.eq(counter + 1)
 
         self.comb += [
             gth.encoder.k[0].eq(1),
             gth.encoder.d[0].eq((5 << 5) | 28),
             gth.encoder.k[1].eq(0),
-            gth.encoder.d[1].eq(sys_counter[26:]),
+            gth.encoder.d[1].eq(counter[26:]),
         ]
 
         for i in range(4):
@@ -90,6 +85,14 @@ class BaseSoC(SoCCore):
         self.platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
             gth.txoutclk)
+
+        rtio_counter = Signal(32)
+        self.sync.rtio += rtio_counter.eq(rtio_counter + 1)
+        self.comb += platform.request("user_led", 7).eq(rtio_counter[26])
+
+        #rtio_rx_counter = Signal(32)
+        #self.sync.rtio_rx += rtio_rx_counter.eq(rtio_rx_counter + 1)
+        #self.comb += platform.request("user_led", 6).eq(rtio_rx_counter[26])
 
 
 def main():

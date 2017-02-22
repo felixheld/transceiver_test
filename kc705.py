@@ -84,6 +84,14 @@ class BaseSoC(SoCCore):
             gtx.txoutclk,
             gtx.rxoutclk)
 
+        rtio_counter = Signal(32)
+        self.sync.rtio += rtio_counter.eq(rtio_counter + 1)
+        self.comb += platform.request("user_led", 7).eq(rtio_counter[26])
+
+        rtio_rx_counter = Signal(32)
+        self.sync.rtio_rx += rtio_rx_counter.eq(rtio_rx_counter + 1)
+        self.comb += platform.request("user_led", 6).eq(rtio_rx_counter[26])
+
 
 def main():
     platform = kc705.Platform()
