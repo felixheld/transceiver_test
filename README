@@ -1,1 +1,3 @@
-DRTIO Kintex Ultrascale GTH test
+Test of transceivers for board to board communication
+- Kintex7 (GTX)
+- Ultrascale (GTH)
