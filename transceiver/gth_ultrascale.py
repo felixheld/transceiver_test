@@ -73,7 +73,8 @@ CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
 
 
 class GTH(Module):
-    def __init__(self, cpll, tx_pads, rx_pads, sys_clk_freq):
+    def __init__(self, cpll, tx_pads, rx_pads, sys_clk_freq,
+                 tx_polarity=0):
         self.submodules.encoder = ClockDomainsRenamer("rtio")(
             Encoder(2, True))
 
@@ -99,8 +100,6 @@ class GTH(Module):
                 # Reset modes
                 i_GTRESETSEL=0,
                 i_RESETOVRD=0,
-
-                i_TXPOLARITY=1,
 
                 # PMA Attributes
                 p_PMA_RSV1=0xf800,
@@ -169,6 +168,9 @@ class GTH(Module):
                 # TX electrical
                 i_TXBUFDIFFCTRL=0b000,
                 i_TXDIFFCTRL=0b1100,
+
+                # Polarity
+                i_TXPOLARITY=tx_polarity,
 
                 # Pads
                 o_GTHTXP=tx_pads.p,
