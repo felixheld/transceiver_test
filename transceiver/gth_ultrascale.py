@@ -104,6 +104,7 @@ class GTH(Module):
             rx_init.plllock.eq(cpll.lock),
             cpll.reset.eq(tx_init.pllreset)
         ]
+        self.rx_init = rx_init
 
         txdata = Signal(20)
         rxdata = Signal(20)

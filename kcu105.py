@@ -64,7 +64,7 @@ class BaseSoC(SoCCore):
             rx_pads = platform.request("user_sma_mgt_rx")
         else:
             raise ValueError
-        gth = GTH(cpll, tx_pads, rx_pads, clk_freq)
+        gth = GTH(cpll, tx_pads, rx_pads, clk_freq, clock_aligner=False)
         self.submodules += gth
 
         counter = Signal(32)
@@ -78,8 +78,11 @@ class BaseSoC(SoCCore):
         ]
 
         self.comb += platform.request("user_led", 4).eq(gth.rx_ready)
+        #for i in range(4):
+        #    self.comb += platform.request("user_led", i).eq(gth.decoders[1].d[i])
+
         for i in range(4):
-            self.comb += platform.request("user_led", i).eq(gth.decoders[1].d[i])
+            self.comb += platform.request("user_led", i).eq(gth.rx_init.debug[i])
 
         platform.add_period_constraint(self.crg.cd_sys.clk, platform.default_clk_period)
         platform.add_period_constraint(gth.txoutclk, 1/rtio_clk_freq)
