@@ -88,6 +88,8 @@ class GTX(Module):
 
         # # #
 
+        assert cpll.config["linerate"]/cpll.config["clkin"] == 20
+
         # TX generates RTIO clock, init must be in system domain
         tx_init = GTXInit(sys_clk_freq, False)
         # RX receives restart commands from RTIO domain

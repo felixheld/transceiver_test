@@ -50,7 +50,7 @@ class GTXSim(Module):
                 o_O=refclk)
         ]
 
-        cpll = GTXChannelPLL(refclk, 125e6, 1.25e9)
+        cpll = GTXChannelPLL(refclk, 125e6, 2.5e9)
         print(cpll)
         self.submodules += cpll
 

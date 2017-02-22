@@ -81,6 +81,8 @@ class GTH(Module):
 
         # # #
 
+        assert cpll.config["linerate"]/cpll.config["clkin"] == 20
+
         # TX generates RTIO clock, init must be in system domain
         tx_init = GTHInit(sys_clk_freq, False)
         self.submodules += tx_init
