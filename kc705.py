@@ -37,11 +37,11 @@ class BaseSoC(SoCCore):
                 i_CEB=0,
                 i_I=refclk_pads.p,
                 i_IB=refclk_pads.n,
-                o_O=refclk)
+                o_ODIV2=refclk)
         ]
 
-        rtio_linerate = 2.5e9
-        rtio_clk_freq = 125e6
+        rtio_linerate = 1.25e9
+        rtio_clk_freq = 62.5e6
 
         cpll = GTXChannelPLL(refclk, rtio_clk_freq, rtio_linerate)
         print(cpll)
