@@ -260,6 +260,6 @@ class GTH(Module):
                 self.rx_ready.eq(clock_aligner.ready)
             ]
         else:
-            self.rx_ready.eq(rx_init.done)
+            self.comb += self.rx_ready.eq(rx_init.done)
 
 
