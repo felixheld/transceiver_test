@@ -219,7 +219,7 @@ class GTH(Module):
                 o_RXCTRL0=Cat(rxdata[8], rxdata[18]),
                 o_RXCTRL1=Cat(rxdata[9], rxdata[19]),
                 o_RXDATA=Cat(rxdata[:8], rxdata[10:18]),
-				
+
 				# RX electrical
 				i_RXELECIDLEMODE=0b11,
 

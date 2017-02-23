@@ -43,8 +43,7 @@ class BaseSoC(SoCCore):
         rtio_linerate = 1.25e9
         rtio_clk_freq = 62.5e6
 
-        cpll = GTXChannelPLL(refclk, rtio_clk_freq, rtio_linerate
-            clock_aligner=True, internal_loopback=False)
+        cpll = GTXChannelPLL(refclk, rtio_clk_freq, rtio_linerate)
         print(cpll)
         self.submodules += cpll
 
@@ -60,6 +59,7 @@ class BaseSoC(SoCCore):
         else:
             raise ValueError
         gtx = GTX(cpll, tx_pads, rx_pads, clk_freq,
+            clock_aligner=True, internal_loopback=False,
             tx_polarity=polarity, rx_polarity=polarity)
         self.submodules += gtx
 

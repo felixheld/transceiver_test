@@ -58,7 +58,7 @@ class GTHSim(Module):
         tx_pads = platform.request("gth_tx")
         rx_pads = platform.request("gth_rx")
         gth = GTH(cpll, tx_pads, rx_pads, clk_freq,
-            clock_aligner=False, internal_loopback=False)
+            clock_aligner=True, internal_loopback=False)
         self.submodules += gth
 
         counter = Signal(8)
