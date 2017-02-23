@@ -93,7 +93,7 @@ class GTH(Module):
         tx_init = GTHInit(sys_clk_freq, False)
         # RX receives restart commands from RTIO domain
         rx_init = ClockDomainsRenamer("rtio")(
-            GTHInit(cpll.refclk_freq, True))
+            GTHRXInit(cpll.refclk_freq, True))
         self.submodules += tx_init, rx_init
         self.comb += [
             tx_init.plllock.eq(cpll.lock),
@@ -101,6 +101,8 @@ class GTH(Module):
             cpll.reset.eq(tx_init.pllreset)
         ]
         self.rx_init = rx_init
+
+        rxphaligndone = Signal()
 
         txdata = Signal(20)
         rxdata = Signal(20)
@@ -111,7 +113,7 @@ class GTH(Module):
                 i_RESETOVRD=0,
 
                 # PMA Attributes
-                p_PMA_RSV1=0xf800,
+                #p_PMA_RSV1=0xf800,
                 p_RX_BIAS_CFG0=0x0AB4,
                 p_RX_CM_TRIM=0b1010,
                 p_RX_CLK25_DIV=5,
@@ -125,7 +127,7 @@ class GTH(Module):
                 # CPLL
                 p_CPLL_CFG0=0x67f8,
                 p_CPLL_CFG1=0xa4ac,
-                p_CPLL_CFG2=0xf007,
+                #p_CPLL_CFG2=0xf007,
                 p_CPLL_CFG3=0x0000,
                 p_CPLL_FBDIV=cpll.config["n2"],
                 p_CPLL_FBDIV_45=cpll.config["n1"],
@@ -182,8 +184,14 @@ class GTH(Module):
                 i_GTRXRESET=rx_init.gtXxreset,
                 o_RXRESETDONE=rx_init.Xxresetdone,
                 i_RXDLYSRESET=rx_init.Xxdlysreset,
-                o_RXDLYSRESETDONE=rx_init.Xxdlysresetdone,
-                o_RXPHALIGNDONE=rx_init.Xxphaligndone,
+
+
+                #o_RXDLYSRESETDONE=,
+                o_RXPHALIGNDONE=rxphaligndone,
+                i_RXSYNCALLIN=rxphaligndone,
+                i_RXSYNCIN=0,
+                i_RXSYNCMODE=1,
+                o_RXSYNCDONE=rx_init.Xxsyncdone,
                 i_RXUSERRDY=rx_init.Xxuserrdy,
 
                 # RX AFE
@@ -204,8 +212,8 @@ class GTH(Module):
 
                 # RX Clock Correction Attributes
                 p_CLK_CORRECT_USE="FALSE",
-                p_CLK_COR_SEQ_1_1=0b0100000000,
-                p_CLK_COR_SEQ_2_1=0b0100000000,
+                p_CLK_COR_SEQ_1_1=0b0000000000,
+                p_CLK_COR_SEQ_2_1=0b0000000000,
                 p_CLK_COR_SEQ_1_ENABLE=0b1111,
                 p_CLK_COR_SEQ_2_ENABLE=0b1111,
 
@@ -228,6 +236,91 @@ class GTH(Module):
                 i_GTHRXN=rx_pads.n,
                 o_GTHTXP=tx_pads.p,
                 o_GTHTXN=tx_pads.n,
+
+                p_ALIGN_COMMA_ENABLE=0b1111111111,
+                p_ALIGN_COMMA_WORD=2,
+                p_CBCC_DATA_SOURCE_SEL="ENCODED",
+                p_CLK_COR_SEQ_LEN=1,
+                p_CPLL_CFG2=0b0000000000000111,
+                p_CPLL_INIT_CFG0=0b00000001010110010,
+                p_DEC_VALID_COMMA_ONLY="FALSE",
+                p_PCI3_AUTO_REALIGN="OVR_1K_BLK",
+                p_PCI3_PIPE_RX_ELECIDLE=0,
+
+  				p_PCIE_BUFG_DIV_CTRL=0b0001000000000000,
+  				p_PCIE_RXPCS_CFG_GEN3=0b0000001010100100,
+  				p_PCIE_RXPMA_CFG=0b0000000000001010,
+  				p_PCIE_TXPCS_CFG_GEN3=0b0010110010100100,
+  				p_PCIE_TXPMA_CFG=0b0000000000001010,
+
+  				p_PLL_SEL_MODE_GEN3=0b11,
+  				p_PMA_RSV1=0b1111000000000000,
+  				p_PROCESS_PAR=0b010,
+  				i_RX8B10BEN=0,
+
+                p_RXCDR_CFG0               = 0b0000000000000000,
+                p_RXCDR_CFG0_GEN3          = 0b0000000000000000,
+                p_RXCDR_CFG1               = 0b0000000000000000,
+                p_RXCDR_CFG1_GEN3          = 0b0000000000000000,
+                p_RXCDR_CFG2               = 0b0000011111000110,
+                p_RXCDR_CFG2_GEN3          = 0b0000011111100110,
+                p_RXCDR_CFG3               = 0b0000000000000000,
+                p_RXCDR_CFG3_GEN3          = 0b0000000000000000,
+                p_RXCDR_CFG4               = 0b0000000000000000,
+                p_RXCDR_CFG4_GEN3          = 0b0000000000000000,
+                p_RXCDR_CFG5               = 0b0000000000000000,
+                p_RXCDR_CFG5_GEN3          = 0b0000000000000000,
+                p_RXCDR_FR_RESET_ON_EIDLE  = 0b0,
+                p_RXCDR_HOLD_DURING_EIDLE  = 0b0,
+                p_RXCDR_LOCK_CFG0          = 0b0100010010000000,
+                p_RXCDR_LOCK_CFG1          = 0b0101111111111111,
+                p_RXCDR_LOCK_CFG2          = 0b0111011111000011,
+                p_RXCDR_PH_RESET_ON_EIDLE  = 0b0,
+                p_RXCFOK_CFG0              = 0b0100000000000000,
+                p_RXCFOK_CFG1              = 0b0000000001100101,
+                p_RXCFOK_CFG2              = 0b0000000000101110,
+
+                p_RXDFE_GC_CFG1 = 0b0111100001110000,
+
+ 				p_RXPI_CFG0 = 0b01,
+ 				p_RXPI_CFG1 = 0b01,
+ 				p_RXPI_CFG2 = 0b01,
+ 				p_RXPI_CFG3 = 0b01,
+ 				p_RXPI_CFG4 = 0b1,
+ 				p_RXPI_CFG5 = 0b1,
+ 				p_RXPI_CFG6 = 0b011,
+
+ 				p_RXPMARESET_TIME=0b11,
+ 				p_RX_DFELPM_CFG1=0b1,
+ 				p_RX_DFE_AGC_CFG0=0b10,
+ 				p_RX_DFE_AGC_CFG1=0b000,
+
+				p_RX_DFE_KL_LPM_KH_CFG0=0b01,
+				p_RX_DFE_KL_LPM_KH_CFG1=0b000,
+				p_RX_DFE_KL_LPM_KL_CFG0=0b01,
+				p_RX_DFE_KL_LPM_KL_CFG1=0b000,
+
+				p_RX_SAMPLE_PERIOD=0b111,
+
+ 				p_RX_SUM_DFETAPREP_EN=0b0,
+ 				p_RX_SUM_IREF_TUNE=0b1100,
+ 				p_RX_SUM_RES_CTRL=0b11,
+ 				p_RX_SUM_VCMTUNE=0b0000,
+ 				p_RX_SUM_VCM_OVWR=0b0,
+ 				p_RX_SUM_VREF_TUNE=0b000,
+ 				p_RX_TUNE_AFE_OS=0b10,
+
+ 				i_RXPMARESET=0,
+ 				i_RXCDRRESET=0,
+ 				i_RXCDRFREQRESET=0,
+ 				i_RXDFELPMRESET=0,
+ 				i_EYESCANRESET=0,
+ 				i_RXPCSRESET=0,
+ 				i_RXBUFRESET=0,
+
+ 				p_RXSYNC_MULTILANE=0,
+ 				p_RXSYNC_OVRD=0,
+
             )
 
         tx_reset_deglitched = Signal()
