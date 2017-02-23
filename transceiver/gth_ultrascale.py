@@ -91,8 +91,6 @@ class GTH(Module):
 
         # # #
 
-        assert cpll.config["linerate"]/cpll.config["clkin"] == 20
-
         # TX generates RTIO clock, init must be in system domain
         tx_init = GTHInit(sys_clk_freq, False)
         # RX receives restart commands from RTIO domain
@@ -238,8 +236,11 @@ class GTH(Module):
         tx_reset_deglitched.attr.add("no_retiming")
         self.sync += tx_reset_deglitched.eq(~tx_init.done)
         self.clock_domains.cd_rtio = ClockDomain()
+        linerate_clkin_ratio = cpll.config["linerate"]/cpll.config["clkin"]
+        tx_bufg_div = int(20/linerate_clkin_ratio)
         self.specials += [
-            Instance("BUFG_GT", i_I=self.txoutclk, o_O=self.cd_rtio.clk),
+            Instance("BUFG_GT", i_I=self.txoutclk, o_O=self.cd_rtio.clk,
+                i_DIV=tx_bufg_div-1),
             AsyncResetSynchronizer(self.cd_rtio, tx_reset_deglitched)
         ]
         rx_reset_deglitched = Signal()
