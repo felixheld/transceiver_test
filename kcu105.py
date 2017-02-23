@@ -64,7 +64,8 @@ class BaseSoC(SoCCore):
             rx_pads = platform.request("user_sma_mgt_rx")
         else:
             raise ValueError
-        gth = GTH(cpll, tx_pads, rx_pads, clk_freq, clock_aligner=True, internal_loopback=False)
+        gth = GTH(cpll, tx_pads, rx_pads, clk_freq,
+            clock_aligner=True, internal_loopback=False)
         self.submodules += gth
 
         counter = Signal(32)
