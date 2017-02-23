@@ -174,6 +174,8 @@ class GTH(Module):
                 i_TXUSRCLK2=ClockSignal("rtio"),
 
                 # TX electrical
+                i_TXPD=0b00,
+                p_TX_CLKMUX_EN=1,
                 i_TXBUFDIFFCTRL=0b000,
                 i_TXDIFFCTRL=0b1100,
 
@@ -225,6 +227,8 @@ class GTH(Module):
                 o_RXDATA=Cat(rxdata[:8], rxdata[10:18]),
 
 				# RX electrical
+				i_RXPD=0b00,
+				p_RX_CLKMUX_EN=1,
 				i_RXELECIDLEMODE=0b11,
 
                 # Polarity
