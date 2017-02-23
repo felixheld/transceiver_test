@@ -13,7 +13,7 @@ from transceiver.gth_ultrascale import GTHChannelPLL, GTH
 
 
 class BaseSoC(SoCCore):
-    def __init__(self, platform, medium="sfp"):
+    def __init__(self, platform, medium="sfp0"):
         clk_freq = int(1e9/platform.default_clk_period)
         SoCCore.__init__(self, platform, clk_freq,
             cpu_type=None,
@@ -55,10 +55,14 @@ class BaseSoC(SoCCore):
         print(cpll)
         self.submodules += cpll
 
-        if medium == "sfp":
-            self.comb += platform.request("sfp_tx_disable_n").eq(1)
-            tx_pads = platform.request("sfp_tx")
-            rx_pads = platform.request("sfp_rx")
+        if medium == "sfp0":
+            self.comb += platform.request("sfp_tx_disable_n", 0).eq(1)
+            tx_pads = platform.request("sfp_tx", 0)
+            rx_pads = platform.request("sfp_rx", 0)
+        elif medium == "sfp1":
+            self.comb += platform.request("sfp_tx_disable_n", 1).eq(1)
+            tx_pads = platform.request("sfp_tx", 1)
+            rx_pads = platform.request("sfp_rx", 1)
         elif medium == "sma":
             tx_pads = platform.request("user_sma_mgt_tx")
             rx_pads = platform.request("user_sma_mgt_rx")
