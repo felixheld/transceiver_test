@@ -93,13 +93,16 @@ class BaseSoC(SoCCore):
         #for i in range(4):
         #    self.comb += platform.request("user_led", i).eq(gth.rx_init.debug[i])
 
+        self.crg.cd_sys.clk.attr.add("keep")
+        gth.cd_rtio.clk.attr.add("keep")
+        gth.cd_rtio_rx.clk.attr.add("keep")
         platform.add_period_constraint(self.crg.cd_sys.clk, platform.default_clk_period)
-        platform.add_period_constraint(gth.txoutclk, 1/rtio_clk_freq)
-        platform.add_period_constraint(gth.rxoutclk, 1/rtio_clk_freq)
+        platform.add_period_constraint(gth.cd_rtio.clk, 1e9/rtio_clk_freq)
+        platform.add_period_constraint(gth.cd_rtio_rx.clk, 1e9/rtio_clk_freq)
         self.platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
-            gth.txoutclk,
-            gth.rxoutclk)
+            gth.cd_rtio.clk,
+            gth.cd_rtio_rx.clk)
 
         rtio_counter = Signal(32)
         self.sync.rtio += rtio_counter.eq(rtio_counter + 1)
