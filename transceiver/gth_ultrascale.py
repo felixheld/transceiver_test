@@ -34,7 +34,7 @@ class GTHChannelPLL(Module):
 
     def __repr__(self):
         r = """
-GTHChannel PLL
+GTHChannelPLL
 ==============
   overview:
   ---------

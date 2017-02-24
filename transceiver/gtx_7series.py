@@ -34,7 +34,7 @@ class GTXChannelPLL(Module):
 
     def __repr__(self):
         r = """
-GTXChannel PLL
+GTXChannelPLL
 ==============
   overview:
   ---------
