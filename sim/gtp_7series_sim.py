@@ -56,7 +56,8 @@ class GTPSim(Module):
 
 
         tx_pads = platform.request("gtp_tx")
-        gtp = GTP(qpll, tx_pads, clk_freq)
+        rx_pads = platform.request("gtp_rx")
+        gtp = GTP(qpll, tx_pads, rx_pads, clk_freq, clock_aligner=False)
         self.submodules += gtp
 
         counter = Signal(8)
@@ -98,7 +99,9 @@ top dut (
     .gtp_refclk_p(gtp_refclk),
     .gtp_refclk_n(~gtp_refclk),
     .gtp_tx_p(gtp_p),
-    .gtp_tx_n(gtp_n)
+    .gtp_tx_n(gtp_n),
+    .gtp_rx_p(gtp_p),
+    .gtp_rx_n(gtp_n)
 );
 
 endmodule""")
