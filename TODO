@@ -1,5 +1,6 @@
 - fix RX equalization on KC705? (not working with all SFP modules/cables/fiber)
 - fix RX on KCU105 (only working with near end pma loopback, pma config?)
+- fix initialization sequence on Artix7
 - add GTP 7series support (Artix7)
 - add multilanes wrapper
 - test TX/RX with multilanes

@@ -10,7 +10,7 @@ from litex.build.xilinx import XilinxPlatform
 
 from litex.gen.genlib.io import CRG
 
-from transceiver.gtp_7series import GTPQuadPLL
+from transceiver.gtp_7series import GTPQuadPLL, GTP
 
 
 _io = [
@@ -55,6 +55,21 @@ class GTPSim(Module):
         self.submodules += qpll
 
 
+        tx_pads = platform.request("gtp_tx")
+        gtp = GTP(qpll, tx_pads, clk_freq)
+        self.submodules += gtp
+
+        counter = Signal(8)
+        self.sync.rtio += counter.eq(counter + 1)
+
+        self.comb += [
+            gtp.encoder.k[0].eq(1),
+            gtp.encoder.d[0].eq((5 << 5) | 28),
+            gtp.encoder.k[1].eq(0),
+            gtp.encoder.d[1].eq(counter),
+        ]
+
+
 def generate_top():
     platform = Platform()
     soc = GTPSim(platform)
@@ -83,9 +98,7 @@ top dut (
     .gtp_refclk_p(gtp_refclk),
     .gtp_refclk_n(~gtp_refclk),
     .gtp_tx_p(gtp_p),
-    .gtp_tx_n(gtp_n),
-    .gtp_rx_p(gtp_p),
-    .gtp_rx_n(gtp_n)
+    .gtp_tx_n(gtp_n)
 );
 
 endmodule""")
@@ -102,7 +115,7 @@ def run_sim():
 def main():
     generate_top()
     generate_top_tb()
-    #run_sim()
+    run_sim()
 
 if __name__ == "__main__":
     main()
