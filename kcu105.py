@@ -90,9 +90,6 @@ class BaseSoC(SoCCore):
         for i in range(4):
             self.comb += platform.request("user_led", i).eq(gth.decoders[1].d[i])
 
-        #for i in range(4):
-        #    self.comb += platform.request("user_led", i).eq(gth.rx_init.debug[i])
-
         self.crg.cd_sys.clk.attr.add("keep")
         gth.cd_rtio.clk.attr.add("keep")
         gth.cd_rtio_rx.clk.attr.add("keep")

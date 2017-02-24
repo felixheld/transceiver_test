@@ -9,9 +9,6 @@ from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
 from litex.soc.cores.uart.bridge import UARTWishboneBridge
 
-from litex.build.generic_platform import *
-from litex.boards.platforms import kc705
-
 from transceiver.gtx_7series import GTXChannelPLL, GTX
 
 
@@ -37,13 +34,14 @@ class BaseSoC(SoCCore):
                 i_CEB=0,
                 i_I=refclk_pads.p,
                 i_IB=refclk_pads.n,
-                o_ODIV2=refclk)
+                o_O=refclk)
         ]
 
+        refclk_freq   = 125e6
         rtio_linerate = 1.25e9
-        rtio_clk_freq = 62.5e6
+        rtio_clk_freq = rtio_linerate//20
 
-        cpll = GTXChannelPLL(refclk, rtio_clk_freq, rtio_linerate)
+        cpll = GTXChannelPLL(refclk, refclk_freq, rtio_linerate)
         print(cpll)
         self.submodules += cpll
 
@@ -102,6 +100,7 @@ def main():
     soc = BaseSoC(platform)
     builder = Builder(soc, output_dir="build_kc705", csr_csv="test/csr.csv")
     builder.build()
+
 
 if __name__ == "__main__":
     main()
