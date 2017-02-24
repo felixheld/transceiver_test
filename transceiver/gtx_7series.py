@@ -21,9 +21,7 @@ class GTXChannelPLL(Module):
             for n2 in 1, 2, 3, 4, 5:
                 for m in 1, 2:
                     vco_freq = refclk_freq*(n1*n2)/m
-                    print(vco_freq/1e9)
-                    #if 1.6e9 <= vco_freq <= 3.3e9:
-                    if vco_freq <= 3.3e9:
+                    if 1.6e9 <= vco_freq <= 3.3e9:
                         for d in 1, 2, 4, 8, 16:
                             current_linerate = vco_freq*2/d
                             if current_linerate == linerate:
@@ -90,8 +88,6 @@ class GTX(Module):
         self.rxoutclk = Signal()
 
         # # #
-
-        assert cpll.config["linerate"]/cpll.config["clkin"] == 20
 
         # TX generates RTIO clock, init must be in system domain
         tx_init = GTXInit(sys_clk_freq, False)
@@ -240,8 +236,16 @@ class GTX(Module):
         tx_reset_deglitched.attr.add("no_retiming")
         self.sync += tx_reset_deglitched.eq(~tx_init.done)
         self.clock_domains.cd_rtio = ClockDomain()
+        linerate_clkin_ratio = cpll.config["linerate"]/cpll.config["clkin"]
+        txoutclk_bufg = Signal()
+        txoutclk_bufr = Signal()
+        tx_bufr_div = int(20/linerate_clkin_ratio)
         self.specials += [
-            Instance("BUFG", i_I=self.txoutclk, o_O=self.cd_rtio.clk),
+        	Instance("BUFG", i_I=self.txoutclk, o_O=txoutclk_bufg),
+        	# TODO: use MMCM instead?
+            Instance("BUFR", i_I=txoutclk_bufg, o_O=txoutclk_bufr,
+				p_BUFR_DIVIDE=tx_bufr_div),
+            Instance("BUFG", i_I=txoutclk_bufr, o_O=self.cd_rtio.clk),
             AsyncResetSynchronizer(self.cd_rtio, tx_reset_deglitched)
         ]
         rx_reset_deglitched = Signal()
