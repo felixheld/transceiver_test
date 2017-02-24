@@ -51,11 +51,7 @@ class BaseSoC(SoCCore):
                 o_O=refclk)
         ]
 
-        refclk_freq   = 125e6
-        rtio_linerate = 1.25e9
-        rtio_clk_freq = rtio_linerate//20
-
-        cpll = GTHChannelPLL(refclk, refclk_freq, rtio_linerate)
+        cpll = GTHChannelPLL(refclk, 125e6, 1.25e9)
         print(cpll)
         self.submodules += cpll
 
@@ -94,8 +90,8 @@ class BaseSoC(SoCCore):
         gth.cd_rtio.clk.attr.add("keep")
         gth.cd_rtio_rx.clk.attr.add("keep")
         platform.add_period_constraint(self.crg.cd_sys.clk, platform.default_clk_period)
-        platform.add_period_constraint(gth.cd_rtio.clk, 1e9/rtio_clk_freq)
-        platform.add_period_constraint(gth.cd_rtio_rx.clk, 1e9/rtio_clk_freq)
+        platform.add_period_constraint(gth.cd_rtio.clk, 1e9/gth.rtio_clk_freq)
+        platform.add_period_constraint(gth.cd_rtio_rx.clk, 1e9/gth.rtio_clk_freq)
         self.platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
             gth.cd_rtio.clk,

@@ -11,7 +11,6 @@ from transceiver.clock_aligner import BruteforceClockAligner
 class GTXChannelPLL(Module):
     def __init__(self, refclk, refclk_freq, linerate):
         self.refclk = refclk
-        self.refclk_freq = refclk_freq
         self.reset = Signal()
         self.lock = Signal()
         self.config = self.compute_config(refclk_freq, linerate)
@@ -88,13 +87,15 @@ class GTX(Module):
         self.txoutclk = Signal()
         self.rxoutclk = Signal()
 
+        self.rtio_clk_freq = cpll.config["linerate"]/20
+
         # # #
 
         # TX generates RTIO clock, init must be in system domain
         tx_init = GTXInit(sys_clk_freq, False)
         # RX receives restart commands from RTIO domain
         rx_init = ClockDomainsRenamer("rtio")(
-            GTXInit(cpll.refclk_freq, True))
+            GTXInit(self.rtio_clk_freq, True))
         self.submodules += tx_init, rx_init
         self.comb += [
             tx_init.plllock.eq(cpll.lock),
@@ -237,10 +238,9 @@ class GTX(Module):
         tx_reset_deglitched.attr.add("no_retiming")
         self.sync += tx_reset_deglitched.eq(~tx_init.done)
         self.clock_domains.cd_rtio = ClockDomain()
-        linerate_clkin_ratio = cpll.config["linerate"]/cpll.config["clkin"]
         txoutclk_bufg = Signal()
         txoutclk_bufr = Signal()
-        tx_bufr_div = int(20/linerate_clkin_ratio)
+        tx_bufr_div = int(cpll.config["clkin"]/self.rtio_clk_freq)
         self.specials += [
         	Instance("BUFG", i_I=self.txoutclk, o_O=txoutclk_bufg),
         	# TODO: use MMCM instead?
@@ -265,7 +265,7 @@ class GTX(Module):
         ]
 
         if clock_aligner:
-            clock_aligner = BruteforceClockAligner(0b0101111100, cpll.refclk_freq)
+            clock_aligner = BruteforceClockAligner(0b0101111100, self.rtio_clk_freq)
             self.submodules += clock_aligner
             self.comb += [
                 clock_aligner.rxdata.eq(rxdata),

@@ -11,7 +11,6 @@ from transceiver.clock_aligner import BruteforceClockAligner
 class GTHChannelPLL(Module):
     def __init__(self, refclk, refclk_freq, linerate):
         self.refclk = refclk
-        self.refclk_freq = refclk_freq
         self.reset = Signal()
         self.lock = Signal()
         self.config = self.compute_config(refclk_freq, linerate)
@@ -88,13 +87,15 @@ class GTH(Module):
         self.txoutclk = Signal()
         self.rxoutclk = Signal()
 
+        self.rtio_clk_freq = cpll.config["linerate"]/20
+
         # # #
 
         # TX generates RTIO clock, init must be in system domain
         tx_init = GTHInit(sys_clk_freq, False)
         # RX receives restart commands from RTIO domain
         rx_init = ClockDomainsRenamer("rtio")(
-            GTHInit(cpll.refclk_freq, True))
+            GTHInit(self.rtio_clk_freq, True))
         self.submodules += tx_init, rx_init
         self.comb += [
             tx_init.plllock.eq(cpll.lock),
@@ -242,8 +243,7 @@ class GTH(Module):
         tx_reset_deglitched.attr.add("no_retiming")
         self.sync += tx_reset_deglitched.eq(~tx_init.done)
         self.clock_domains.cd_rtio = ClockDomain()
-        linerate_clkin_ratio = cpll.config["linerate"]/cpll.config["clkin"]
-        tx_bufg_div = int(20/linerate_clkin_ratio)
+        tx_bufg_div = int(cpll.config["clkin"]/self.rtio_clk_freq)
         self.specials += [
             Instance("BUFG_GT", i_I=self.txoutclk, o_O=self.cd_rtio.clk,
                 i_DIV=tx_bufg_div-1),
@@ -265,7 +265,7 @@ class GTH(Module):
         ]
 
         if clock_aligner:
-            clock_aligner = BruteforceClockAligner(0b0101111100, cpll.refclk_freq)
+            clock_aligner = BruteforceClockAligner(0b0101111100, self.rtio_clk_freq)
             self.submodules += clock_aligner
             self.comb += [
                 clock_aligner.rxdata.eq(rxdata),
