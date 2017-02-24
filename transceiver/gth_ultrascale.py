@@ -5,6 +5,7 @@ from litex.soc.interconnect.csr import *
 
 from transceiver.line_coding import Encoder, Decoder
 from transceiver.gth_ultrascale_init import *
+from transceiver.clock_aligner import BruteforceClockAligner
 
 
 class GTHChannelPLL(Module):
