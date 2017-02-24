@@ -4,7 +4,7 @@ from litex.gen.genlib.resetsync import AsyncResetSynchronizer
 from litex.soc.interconnect.csr import *
 
 from transceiver.line_coding import Encoder, Decoder
-from transceiver.gth_ultrascale_init import *
+from transceiver.gth_ultrascale_init import GTHInit
 from transceiver.clock_aligner import BruteforceClockAligner
 
 
@@ -94,19 +94,17 @@ class GTH(Module):
         tx_init = GTHInit(sys_clk_freq, False)
         # RX receives restart commands from RTIO domain
         rx_init = ClockDomainsRenamer("rtio")(
-            GTHRXInit(cpll.refclk_freq, True))
+            GTHInit(cpll.refclk_freq, True))
         self.submodules += tx_init, rx_init
         self.comb += [
             tx_init.plllock.eq(cpll.lock),
             rx_init.plllock.eq(cpll.lock),
             cpll.reset.eq(tx_init.pllreset)
         ]
-        self.rx_init = rx_init
-
-        rxphaligndone = Signal()
 
         txdata = Signal(20)
         rxdata = Signal(20)
+        rxphaligndone = Signal()
         self.specials += \
             Instance("GTHE3_CHANNEL",
                 # Reset modes
@@ -187,15 +185,12 @@ class GTH(Module):
                 i_GTRXRESET=rx_init.gtXxreset,
                 o_RXRESETDONE=rx_init.Xxresetdone,
                 i_RXDLYSRESET=rx_init.Xxdlysreset,
-
-
-                #o_RXDLYSRESETDONE=,
                 o_RXPHALIGNDONE=rxphaligndone,
                 i_RXSYNCALLIN=rxphaligndone,
+                i_RXUSERRDY=rx_init.Xxuserrdy,
                 i_RXSYNCIN=0,
                 i_RXSYNCMODE=1,
                 o_RXSYNCDONE=rx_init.Xxsyncdone,
-                i_RXUSERRDY=rx_init.Xxuserrdy,
 
                 # RX AFE
                 i_RXDFEXYDEN=1,

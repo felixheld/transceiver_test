@@ -4,7 +4,7 @@ from litex.gen.genlib.resetsync import AsyncResetSynchronizer
 from litex.soc.interconnect.csr import *
 
 from transceiver.line_coding import Encoder, Decoder
-from transceiver.gtx_7series_init import *
+from transceiver.gtx_7series_init import GTXInit
 from transceiver.clock_aligner import BruteforceClockAligner
 
 
