@@ -1,6 +1,5 @@
-- test DRTIO with KC705
-- add Ultrascale transceiver wrappers
-- test KCU105 TX / KC705 RX
-- test KC705 TX / KCU105 RX
+- fix RX equalization on KC705? (not working with all SFP modules/cables/fiber)
+- fix RX on KCU105 (only working with near end pma loopback, pma config?)
+- add GTP 7series support (Artix7)
 - add multilanes wrapper
 - test TX/RX with multilanes
