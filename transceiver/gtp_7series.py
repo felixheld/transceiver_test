@@ -252,12 +252,13 @@ class GTP(Module):
         self.clock_domains.cd_rtio = ClockDomain()
         txoutclk_bufg = Signal()
         txoutclk_bufr = Signal()
-        tx_bufr_div = int(qpll.config["clkin"]/self.rtio_clk_freq)
+        tx_bufr_div = qpll.config["clkin"]/self.rtio_clk_freq
+        assert tx_bufr_div == int(tx_bufr_div)
         self.specials += [
             Instance("BUFG", i_I=self.txoutclk, o_O=txoutclk_bufg),
             # TODO: use MMCM instead?
             Instance("BUFR", i_I=txoutclk_bufg, o_O=txoutclk_bufr,
-                i_CE=1, p_BUFR_DIVIDE=str(tx_bufr_div)),
+                i_CE=1, p_BUFR_DIVIDE=str(int(tx_bufr_div))),
             Instance("BUFG", i_I=txoutclk_bufr, o_O=self.cd_rtio.clk),
             AsyncResetSynchronizer(self.cd_rtio, tx_reset_deglitched)
         ]

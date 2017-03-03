@@ -243,10 +243,11 @@ class GTH(Module):
         tx_reset_deglitched.attr.add("no_retiming")
         self.sync += tx_reset_deglitched.eq(~tx_init.done)
         self.clock_domains.cd_rtio = ClockDomain()
-        tx_bufg_div = int(cpll.config["clkin"]/self.rtio_clk_freq)
+        tx_bufg_div = cpll.config["clkin"]/self.rtio_clk_freq
+        assert tx_bufg_div == int(tx_bufg_div)
         self.specials += [
             Instance("BUFG_GT", i_I=self.txoutclk, o_O=self.cd_rtio.clk,
-                i_DIV=tx_bufg_div-1),
+                i_DIV=int(tx_bufg_div)-1),
             AsyncResetSynchronizer(self.cd_rtio, tx_reset_deglitched)
         ]
         rx_reset_deglitched = Signal()
