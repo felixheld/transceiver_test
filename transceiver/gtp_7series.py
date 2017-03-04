@@ -19,7 +19,8 @@ class GTPQuadPLL(Module):
         self.specials += \
             Instance("GTPE2_COMMON",
                 # common
-                i_GTREFCLK0=refclk,
+                #i_GTREFCLK0=refclk, # FIXME
+                i_GTGREFCLK0=refclk, # FIXME
                 i_BGBYPASSB=1,
                 i_BGMONITORENB=1,
                 i_BGPDB=1,

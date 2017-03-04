@@ -54,7 +54,7 @@ class Platform(XilinxPlatform):
 class BaseSoC(SoCCore):
     def __init__(self, platform):
         sys_clk = Signal()
-        sys_clk_freq = int(62.5e6)
+        sys_clk_freq = int(100e6)
         SoCCore.__init__(self, platform, sys_clk_freq,
             cpu_type=None,
             csr_data_width=32,
@@ -67,18 +67,35 @@ class BaseSoC(SoCCore):
                                                   sys_clk_freq, baudrate=115200))
         self.add_wb_master(self.cpu_or_bridge.wishbone)
 
-        refclk = Signal()
-        refclk_pads = platform.request("clk100")
+        refclk100 = Signal()
+        refclk100_pads = platform.request("clk100")
         self.specials += [
             Instance("IBUFDS_GTE2",
                 i_CEB=0,
-                i_I=refclk_pads.p,
-                i_IB=refclk_pads.n,
-                o_O=refclk),
-            Instance("BUFG", i_I=refclk, o_O=sys_clk)
+                i_I=refclk100_pads.p,
+                i_IB=refclk100_pads.n,
+                o_O=refclk100),
+            Instance("BUFG", i_I=refclk100, o_O=sys_clk)
         ]
 
-        qpll = GTPQuadPLL(refclk, 100e6, 1.25e9)
+        refclk125 = Signal()
+        pll_fb = Signal()
+        self.specials += [
+            Instance("PLLE2_BASE",
+                     p_STARTUP_WAIT="FALSE", #o_LOCKED=,
+
+                     # VCO @ 1GHz
+                     p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=10.0,
+                     p_CLKFBOUT_MULT=10, p_DIVCLK_DIVIDE=1,
+                     i_CLKIN1=sys_clk, i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
+
+                     # 125MHz
+                     p_CLKOUT0_DIVIDE=8, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=refclk125
+            ),
+        ]
+        platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
+
+        qpll = GTPQuadPLL(refclk125, 125e6, 1.25e9)
         print(qpll)
         self.submodules += qpll
 
@@ -103,7 +120,7 @@ class BaseSoC(SoCCore):
         self.crg.cd_sys.clk.attr.add("keep")
         gtp.cd_rtio.clk.attr.add("keep")
         gtp.cd_rtio_rx.clk.attr.add("keep")
-        platform.add_period_constraint(self.crg.cd_sys.clk, 16)
+        platform.add_period_constraint(self.crg.cd_sys.clk, 10)
         platform.add_period_constraint(gtp.cd_rtio.clk, 1e9/gtp.rtio_clk_freq)
         platform.add_period_constraint(gtp.cd_rtio_rx.clk, 1e9/gtp.rtio_clk_freq)
         self.platform.add_false_path_constraints(
@@ -114,7 +131,6 @@ class BaseSoC(SoCCore):
         rtio_counter = Signal(32)
         self.sync.rtio += rtio_counter.eq(rtio_counter + 1)
         self.comb += platform.request("user_led", 0).eq(rtio_counter[26])
-
 
 def main():
     platform = Platform()
