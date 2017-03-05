@@ -14,7 +14,6 @@ from transceiver.gtp_7series import GTPQuadPLL, GTP
 
 
 _io = [
-    ("clk100", 0, Pins("X")),
     ("gtp_refclk", 0,
         Subsignal("p", Pins("X")),
         Subsignal("n", Pins("X"))
@@ -37,27 +36,46 @@ class Platform(XilinxPlatform):
 
 class GTPSim(Module):
     def __init__(self, platform):
-        clk_freq = 100e6
-        self.submodules.crg = CRG(platform.request("clk100"))
+        sys_clk = Signal()
+        sys_clk_freq = 100e6
+        self.submodules.crg = CRG(sys_clk)
 
-        refclk = Signal()
-        refclk_pads = platform.request("gtp_refclk")
+        refclk100 = Signal()
+        refclk100_pads = platform.request("gtp_refclk")
         self.specials += [
             Instance("IBUFDS_GTE2",
                 i_CEB=0,
-                i_I=refclk_pads.p,
-                i_IB=refclk_pads.n,
-                o_O=refclk)
+                i_I=refclk100_pads.p,
+                i_IB=refclk100_pads.n,
+                o_O=refclk100),
+            Instance("BUFG", i_I=refclk100, o_O=sys_clk)
         ]
 
-        qpll = GTPQuadPLL(refclk, 125e6, 1.25e9)
+        refclk125 = Signal()
+        pll_fb = Signal()
+        self.specials += [
+            Instance("PLLE2_BASE",
+                     p_STARTUP_WAIT="FALSE", #o_LOCKED=,
+
+                     # VCO @ 1GHz
+                     p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=10.0,
+                     p_CLKFBOUT_MULT=10, p_DIVCLK_DIVIDE=1,
+                     i_CLKIN1=sys_clk, i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
+
+                     # 125MHz
+                     p_CLKOUT0_DIVIDE=8, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=refclk125
+            ),
+        ]
+
+        qpll = GTPQuadPLL(refclk125, 125e6, 1.25e9)
         print(qpll)
         self.submodules += qpll
 
 
         tx_pads = platform.request("gtp_tx")
         rx_pads = platform.request("gtp_rx")
-        gtp = GTP(qpll, tx_pads, rx_pads, clk_freq, clock_aligner=False)
+        gtp = GTP(qpll, tx_pads, rx_pads, sys_clk_freq,
+            clock_aligner=True, internal_loopback=False)
         self.submodules += gtp
 
         counter = Signal(8)
@@ -83,19 +101,14 @@ def generate_top_tb():
 
 module top_tb();
 
-reg clk100;
-initial clk100 = 1'b1;
-always #5 clk100 = ~clk100;
-
 reg gtp_refclk;
 initial gtp_refclk = 1'b1;
-always #4 gtp_refclk = ~gtp_refclk;
+always #5 gtp_refclk = ~gtp_refclk;
 
 wire gtp_p;
 wire gtp_n;
 
 top dut (
-    .clk100(clk100),
     .gtp_refclk_p(gtp_refclk),
     .gtp_refclk_n(~gtp_refclk),
     .gtp_tx_p(gtp_p),

@@ -36,7 +36,7 @@ class GTPQuadPLL(Module):
                 p_PLL0_REFCLK_DIV=self.config["m"],
                 i_PLL0LOCKEN=1,
                 i_PLL0PD=0,
-                i_PLL0REFCLKSEL=0b001,
+                i_PLL0REFCLKSEL=0b111,
                 i_PLL0RESET=self.reset,
                 o_PLL0LOCK=self.lock,
                 o_PLL0OUTCLK=self.clk,
@@ -173,6 +173,7 @@ class GTP(Module):
                 p_TXBUF_EN="FALSE",
                 p_TX_XCLK_SEL="TXUSR",
                 o_TXOUTCLK=self.txoutclk,
+                p_TXOUT_DIV=qpll.config["d"],
                 i_TXSYSCLKSEL=0b00,
                 i_TXOUTCLKSEL=0b11,
 
@@ -215,6 +216,7 @@ class GTP(Module):
                 # RX clock
                 p_RXBUF_EN="FALSE",
                 p_RX_XCLK_SEL="RXUSR",
+                p_RXOUT_DIV=qpll.config["d"],
                 i_RXDDIEN=1,
                 i_RXSYSCLKSEL=0b00,
                 i_RXOUTCLKSEL=0b010,
