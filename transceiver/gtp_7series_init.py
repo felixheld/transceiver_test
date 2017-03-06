@@ -111,8 +111,7 @@ class GTPInit(Module):
             Xxuserrdy.eq(1),
             Xxdlysreset.eq(1),
             If(Xxdlysresetdone,
-                #NextState("PHINIT") # FIXME: not working in simulation
-                NextState("READY")
+                NextState("PHINIT")
             )
         )
         # Phase init
@@ -128,7 +127,7 @@ class GTPInit(Module):
             Xxuserrdy.eq(1),
             Xxphalign.eq(1),
             If(Xxphaligndone_rising,
-                NextState("PHALIGN")
+                NextState("DLYEN")
             )
         )
         startup_fsm.act("DLYEN",

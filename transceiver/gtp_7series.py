@@ -180,6 +180,7 @@ class GTP(Module):
                 # TX Startup/Reset
                 i_GTTXRESET=tx_init.gtXxreset,
                 o_TXRESETDONE=tx_init.Xxresetdone,
+                p_TXSYNC_OVRD=1,
                 i_TXDLYSRESET=tx_init.Xxdlysreset,
                 o_TXDLYSRESETDONE=tx_init.Xxdlysresetdone,
                 i_TXPHINIT=tx_init.Xxphinit,
