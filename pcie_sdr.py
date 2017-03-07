@@ -12,7 +12,7 @@ from litex.soc.cores.uart.bridge import UARTWishboneBridge
 
 from transceiver.gtp_7series import GTPQuadPLL, GTP
 
-from litex.build.generic_platform import *
+from litescope import LiteScopeAnalyzer
 
 
 _io = [
@@ -52,6 +52,10 @@ class Platform(XilinxPlatform):
 
 
 class BaseSoC(SoCCore):
+    csr_map = {
+        "analyzer": 20
+    }
+    csr_map.update(SoCCore.csr_map)
     def __init__(self, platform):
         sys_clk = Signal()
         sys_clk_freq = int(100e6)
@@ -82,15 +86,15 @@ class BaseSoC(SoCCore):
         pll_fb = Signal()
         self.specials += [
             Instance("PLLE2_BASE",
-                     p_STARTUP_WAIT="FALSE", #o_LOCKED=,
+                p_STARTUP_WAIT="FALSE", #o_LOCKED=,
 
-                     # VCO @ 1GHz
-                     p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=10.0,
-                     p_CLKFBOUT_MULT=10, p_DIVCLK_DIVIDE=1,
-                     i_CLKIN1=sys_clk, i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
+                # VCO @ 1GHz
+                p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=10.0,
+                p_CLKFBOUT_MULT=10, p_DIVCLK_DIVIDE=1,
+                i_CLKIN1=sys_clk, i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
 
-                     # 125MHz
-                     p_CLKOUT0_DIVIDE=8, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=refclk125
+                # 125MHz
+                p_CLKOUT0_DIVIDE=8, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=refclk125
             ),
         ]
         platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
@@ -132,11 +136,26 @@ class BaseSoC(SoCCore):
         self.sync.rtio += rtio_counter.eq(rtio_counter + 1)
         self.comb += platform.request("user_led", 0).eq(rtio_counter[26])
 
+        analyzer_signals = [
+            gtp.decoders[0].input,
+            gtp.decoders[0].d,
+            gtp.decoders[0].k,
+            gtp.decoders[1].input,
+            gtp.decoders[1].d,
+            gtp.decoders[1].k,
+        ]
+        self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 2048, cd="sys")
+
+    def do_exit(self, vns):
+        self.analyzer.export_csv(vns, "test/analyzer.csv")
+
+
 def main():
     platform = Platform()
     soc = BaseSoC(platform)
     builder = Builder(soc, output_dir="build_pcie_sdr", csr_csv="test/csr.csv")
-    builder.build()
+    vns = builder.build()
+    soc.do_exit(vns)
 
 
 if __name__ == "__main__":
