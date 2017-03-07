@@ -23,6 +23,7 @@ class GTPInit(Module):
         self.Xxphaligndone = Signal()
         self.Xxdlyen = Signal()
         self.Xxuserrdy = Signal()
+        self.Xxsyncdone = Signal()
 
         # # #
 
@@ -32,12 +33,14 @@ class GTPInit(Module):
         Xxdlysresetdone = Signal()
         Xxphinitdone = Signal()
         Xxphaligndone = Signal()
+        Xxsyncdone = Signal()
         self.specials += [
             MultiReg(self.plllock, plllock),
             MultiReg(self.Xxresetdone, Xxresetdone),
             MultiReg(self.Xxdlysresetdone, Xxdlysresetdone),
             MultiReg(self.Xxphinitdone, Xxphinitdone),
-            MultiReg(self.Xxphaligndone, Xxphaligndone)
+            MultiReg(self.Xxphaligndone, Xxphaligndone),
+            MultiReg(self.Xxsyncdone, Xxsyncdone)
         ]
 
         # Deglitch FSM outputs driving transceiver asynch inputs
@@ -101,44 +104,57 @@ class GTPInit(Module):
                 cdr_stable_timer.wait.eq(1),
                 If(Xxresetdone & cdr_stable_timer.done, NextState("ALIGN"))
             )
+            # Delay alignment
+            startup_fsm.act("ALIGN",
+                Xxuserrdy.eq(1),
+                Xxdlysreset.eq(1),
+                If(Xxdlysresetdone,
+                    NextState("WAIT_ALIGN_DONE")
+                )
+            )
+            startup_fsm.act("WAIT_ALIGN_DONE",
+                Xxuserrdy.eq(1),
+                If(Xxsyncdone,
+                    NextState("READY")
+                )
+            )
         else:
             startup_fsm.act("RELEASE_GTP_RESET",
                 Xxuserrdy.eq(1),
                 If(Xxresetdone, NextState("ALIGN"))
             )
-        # Delay alignment
-        startup_fsm.act("ALIGN",
-            Xxuserrdy.eq(1),
-            Xxdlysreset.eq(1),
-            If(Xxdlysresetdone,
-                NextState("PHINIT")
+            # Delay alignment
+            startup_fsm.act("ALIGN",
+                Xxuserrdy.eq(1),
+                Xxdlysreset.eq(1),
+                If(Xxdlysresetdone,
+                    NextState("PHINIT")
+                )
             )
-        )
-        # Phase init
-        startup_fsm.act("PHINIT",
-            Xxuserrdy.eq(1),
-            Xxphinit.eq(1),
-            If(Xxphinitdone,
-                NextState("PHALIGN")
+            # Phase init
+            startup_fsm.act("PHINIT",
+                Xxuserrdy.eq(1),
+                Xxphinit.eq(1),
+                If(Xxphinitdone,
+                    NextState("PHALIGN")
+                )
             )
-        )
-        # Phase align
-        startup_fsm.act("PHALIGN",
-            Xxuserrdy.eq(1),
-            Xxphalign.eq(1),
-            If(Xxphaligndone_rising,
-                NextState("DLYEN")
+            # Phase align
+            startup_fsm.act("PHALIGN",
+                Xxuserrdy.eq(1),
+                Xxphalign.eq(1),
+                If(Xxphaligndone_rising,
+                    NextState("DLYEN")
+                )
             )
-        )
-        startup_fsm.act("DLYEN",
-            Xxuserrdy.eq(1),
-            Xxdlyen.eq(1),
-            If(Xxphaligndone_rising,
-                NextState("READY")
+            startup_fsm.act("DLYEN",
+                Xxuserrdy.eq(1),
+                Xxdlyen.eq(1),
+                If(Xxphaligndone_rising,
+                    NextState("READY")
+                )
             )
-        )
         startup_fsm.act("READY",
-            Xxuserrdy.eq(1),
             Xxuserrdy.eq(1),
             self.done.eq(1),
             If(self.restart, NextState("RESET_ALL"))

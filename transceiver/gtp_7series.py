@@ -127,7 +127,7 @@ class GTP(Module):
         # RX receives restart commands from RTIO domain
         rx_init = ClockDomainsRenamer("rtio")(
             GTPInit(self.rtio_clk_freq, True))
-        self.submodules += tx_init
+        self.submodules += tx_init, rx_init
         self.comb += [
             tx_init.plllock.eq(qpll.lock),
             rx_init.plllock.eq(qpll.lock),
@@ -212,7 +212,11 @@ class GTP(Module):
                 i_RXDLYSRESET=rx_init.Xxdlysreset,
                 o_RXDLYSRESETDONE=rx_init.Xxdlysresetdone,
                 o_RXPHALIGNDONE=rx_init.Xxphaligndone,
+                i_RXSYNCALLIN=rx_init.Xxphaligndone,
                 i_RXUSERRDY=rx_init.Xxuserrdy,
+                i_RXSYNCIN=0,
+                i_RXSYNCMODE=1,
+                o_RXSYNCDONE=rx_init.Xxsyncdone,
 
                 # RX clock
                 p_RXBUF_EN="FALSE",
