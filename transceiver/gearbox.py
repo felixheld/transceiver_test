@@ -30,29 +30,31 @@ class Gearbox(Module):
         ]
         self.clock_domains += cd_write, cd_read
 
-        storage = Signal(lcm(iwidth, owidth)) # FIXME: best width?
-        wrpointer = Signal(max=len(storage)//iwidth) # FIXME: reset value?
-        rdpointer = Signal(max=len(storage)//owidth) # FIXME: reset value?
+        storage = Signal(lcm(iwidth, owidth))
+        wrchunks = len(storage)//iwidth
+        rdchunks = len(storage)//owidth
+        wrpointer = Signal(max=wrchunks, reset=0 if iwidth > owidth else wrchunks-1)
+        rdpointer = Signal(max=rdchunks, reset=rdchunks-1 if iwidth > owidth else 0)
 
         self.sync.write += \
-            If(wrpointer == len(storage)//iwidth-1,
+            If(wrpointer == wrchunks-1,
                 wrpointer.eq(0)
             ).Else(
                 wrpointer.eq(wrpointer + 1)
             )
         cases = {}
-        for i in range(len(storage)//iwidth):
+        for i in range(wrchunks):
             cases[i] = [storage[iwidth*i:iwidth*(i+1)].eq(self.i)]
         self.sync.write += Case(wrpointer, cases)
 
 
         self.sync.read += \
-            If(rdpointer == len(storage)//owidth-1,
+            If(rdpointer == rdchunks-1,
                 rdpointer.eq(0)
             ).Else(
                 rdpointer.eq(rdpointer + 1)
             )
         cases = {}
-        for i in range(len(storage)//owidth):
+        for i in range(rdchunks):
             cases[i] = [self.o.eq(storage[owidth*i:owidth*(i+1)])]
         self.sync.read += Case(rdpointer, cases)
