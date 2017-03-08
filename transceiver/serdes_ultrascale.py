@@ -52,7 +52,7 @@ class SERDESPLL(Module):
 
 
 class SERDES(Module):
-    def __init__(self, pll, tx_pads, rx_pads):
+    def __init__(self, pll, tx_pads=None, rx_pads=None):
         self.produce_square_wave = Signal()
         self.submodules.encoder = ClockDomainsRenamer("rtio")(
             Encoder(2, True))
@@ -76,56 +76,58 @@ class SERDES(Module):
         ]
 
         # tx
-        self.submodules.tx_gearbox = Gearbox(20, "rtio", 8, "serdes_div")
-        self.comb += \
-            If(self.produce_square_wave,
-                # square wave @ linerate/20 for scope observation
-                self.tx_gearbox.i.eq(0b11111111110000000000)
-            ).Else(
-                self.tx_gearbox.i.eq(Cat(self.encoder.output[0],
-                                         self.encoder.output[1]))
-            )
+        if tx_pads is not None:
+            self.submodules.tx_gearbox = Gearbox(20, "rtio", 8, "serdes_div")
+            self.comb += \
+                If(self.produce_square_wave,
+                    # square wave @ linerate/20 for scope observation
+                    self.tx_gearbox.i.eq(0b11111111110000000000)
+                ).Else(
+                    self.tx_gearbox.i.eq(Cat(self.encoder.output[0],
+                                             self.encoder.output[1]))
+                )
 
-        serdes_o = Signal()
-        self.specials += [
-            Instance("OSERDESE3",
-                p_DATA_WIDTH=8, p_INIT=0,
-                p_IS_CLK_INVERTED=0, p_IS_CLKDIV_INVERTED=0, p_IS_RST_INVERTED=0,
+            serdes_o = Signal()
+            self.specials += [
+                Instance("OSERDESE3",
+                    p_DATA_WIDTH=8, p_INIT=0,
+                    p_IS_CLK_INVERTED=0, p_IS_CLKDIV_INVERTED=0, p_IS_RST_INVERTED=0,
 
-                o_OQ=serdes_o,
-                i_RST=ResetSignal(),
-                i_CLK=ClockSignal("serdes"), i_CLKDIV=ClockSignal("serdes_div"),
-                i_D=self.tx_gearbox.o
-            ),
-            Instance("OBUFDS",
-                i_I=serdes_o,
-                o_O=tx_pads.p,
-                o_OB=tx_pads.n
-            )
-        ]
+                    o_OQ=serdes_o,
+                    i_RST=ResetSignal(),
+                    i_CLK=ClockSignal("serdes"), i_CLKDIV=ClockSignal("serdes_div"),
+                    i_D=self.tx_gearbox.o
+                ),
+                Instance("OBUFDS",
+                    i_I=serdes_o,
+                    o_O=tx_pads.p,
+                    o_OB=tx_pads.n
+                )
+            ]
 
         # rx
-        self.submodules.rx_gearbox = Gearbox(8, "serdes_div", 20, "rtio")
-        serdes_i = Signal()
-        self.specials += [
-            Instance("IBUFDS",
-                i_I=rx_pads.p,
-                i_IB=rx_pads.n,
-                o_O=serdes_i
-            ),
-            Instance("ISERDESE3",
-                p_DATA_WIDTH=8,
+        if rx_pads is not None:
+            self.submodules.rx_gearbox = Gearbox(8, "serdes_div", 20, "rtio")
+            serdes_i = Signal()
+            self.specials += [
+                Instance("IBUFDS",
+                    i_I=rx_pads.p,
+                    i_IB=rx_pads.n,
+                    o_O=serdes_i
+                ),
+                Instance("ISERDESE3",
+                    p_DATA_WIDTH=8,
 
-                i_D=serdes_i,
-                i_RST=ResetSignal(),
-                i_FIFO_RD_CLK=0, i_FIFO_RD_EN=0,
-                i_CLK=ClockSignal("serdes"), i_CLK_B=~ClockSignal("serdes"),
-                i_CLKDIV=ClockSignal("serdes_div"),
-                o_Q=self.rx_gearbox.i
-            ),
-        ]
-        self.comb += [
-            self.decoders[0].input.eq(self.rx_gearbox.o[:10]),
-            self.decoders[1].input.eq(self.rx_gearbox.o[10:])
-        ]
+                    i_D=serdes_i,
+                    i_RST=ResetSignal(),
+                    i_FIFO_RD_CLK=0, i_FIFO_RD_EN=0,
+                    i_CLK=ClockSignal("serdes"), i_CLK_B=~ClockSignal("serdes"),
+                    i_CLKDIV=ClockSignal("serdes_div"),
+                    o_Q=self.rx_gearbox.i
+                ),
+            ]
+            self.comb += [
+                self.decoders[0].input.eq(self.rx_gearbox.o[:10]),
+                self.decoders[1].input.eq(self.rx_gearbox.o[10:])
+            ]
 

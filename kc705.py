@@ -13,7 +13,7 @@ from transceiver.gtx_7series import GTXChannelPLL, GTX
 
 
 class BaseSoC(SoCCore):
-    def __init__(self, platform, medium="sfp"):
+    def __init__(self, platform, medium="sma"):
         clk_freq = int(1e9/platform.default_clk_period)
         SoCCore.__init__(self, platform, clk_freq,
             cpu_type=None,
