@@ -1,3 +1,5 @@
+from math import ceil
+
 from litex.gen import *
 from litex.gen.genlib.resetsync import AsyncResetSynchronizer
 
@@ -50,15 +52,66 @@ class SERDESPLL(Module):
         ]
 
 
+def gcd(a,b):
+    """Compute the greatest common divisor of a and b"""
+    while b > 0:
+        a, b = b, a % b
+        return a
+
+
+def lcm(a, b):
+    """Compute the lowest common multiple of a and b"""
+    return a * b / gcd(a, b)
+
+
 class SERDESTXGearbox(Module):
-    def __init__(self):
-        self.i = Signal(20)
-        self.o = Signal(8)
+    def __init__(self, iwidth, idomain, owidth, odomain):
+        self.i = Signal(iwidth)
+        self.o = Signal(owidth)
 
         # # #
 
-        # TODO
-        # 20 bits (rtio) to 8 bits (serdes_div) gearbox
+        cd_write = ClockDomain()
+        cd_read = ClockDomain()
+        self.comb += [
+            cd_write.clk.eq(ClockSignal(idomain)),
+            cd_read.clk.eq(ClockSignal(odomain)),
+            reset.eq(ResetSignal(idomain) | ResetSignal(odomain))
+        ]
+        self.specials += [
+            AsyncResetSynchronizer(cd_write, reset),
+            AsyncResetSynchronizer(cd_read, reset)
+        ]
+        self.clock_domains += cd_write, cd_read
+
+        storage = Signal(lcm(iwidth, owidth)) # FIXME: best width?
+        wrpointer = Signal(max=len(storage)/iwidth) # FIXME: reset value?
+        rdpointer = Signal(max=len(storage)/owidth) # FIXME: reset value?
+
+        print(len(storage))
+
+        self.sync.write += \
+            If(wrpointer == len(storage)/iwidth-1,
+                wrpointer.eq(0)
+            ).Else(
+                wrpointer.eq(wrpointer + 1)
+            )
+        cases = {}
+        for i in range(2):
+            cases[i].eq(storage[iwidth*i:iwidth*(i+1)].eq(self.i))
+        self.sync.write += Case(wrpointer, cases)
+
+
+        self.sync.read += \
+            If(rdpointer == len(storage)/owidth-1,
+                rdpointer.eq(0)
+            ).Else(
+                rdpointer.eq(rdpointer + 1)
+            )
+        cases = {}
+        for i in range(2):
+            cases[i].eq(self.o.eq(storage[owidth*i:owidth*(i+1)]))
+        self.sync.read += Case(rdpointer, cases)
 
 
 class SERDES(Module):
@@ -67,7 +120,7 @@ class SERDES(Module):
         self.submodules.encoder = ClockDomainsRenamer("rtio")(
             Encoder(2, True))
 
-        self.submodules.tx_gearbox = SERDESTXGearbox()
+        self.submodules.tx_gearbox = SERDESTXGearbox(20, "rtio", 8, "serdes_div")
         self.comb += \
             If(self.produce_square_wave,
                 # square wave @ linerate/20 for scope observation
