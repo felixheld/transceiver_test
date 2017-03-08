@@ -105,6 +105,7 @@ class GTP(Module):
     def __init__(self, qpll, tx_pads, rx_pads, sys_clk_freq,
                  clock_aligner=True, internal_loopback=False,
                  tx_polarity=0, rx_polarity=0):
+        self.produce_square_wave = Signal()
         self.submodules.encoder = ClockDomainsRenamer("rtio")(
             Encoder(2, True))
         self.decoders = [ClockDomainsRenamer("rtio_rx")(
@@ -280,7 +281,13 @@ class GTP(Module):
         ]
 
         self.comb += [
-            txdata.eq(Cat(self.encoder.output[0], self.encoder.output[1])),
+             If(self.produce_square_wave,
+                # square wave @ linerate/20 for scope observation
+                txdata.eq(0b11111111110000000000)
+            ).Else(
+                txdata.eq(Cat(self.encoder.output[0],
+                              self.encoder.output[1]))
+            ),
             self.decoders[0].input.eq(rxdata[:10]),
             self.decoders[1].input.eq(rxdata[10:])
         ]
