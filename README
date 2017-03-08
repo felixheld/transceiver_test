@@ -2,3 +2,4 @@ Test of transceivers for board to board communication
 - Kintex7 (GTX): TX/RX working @ 1.25Gbps
 - Ultrascale (GTH): TX working @ 1.25Gbps / RX only working in near end PMA loopback mode
 - Artix7 (GTP): TX working @ 1.25Gbps / RX not tested
+- Ultrascale (Serdes): TX working @ 1.25Gbps / RX not finished/tested
