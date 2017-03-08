@@ -1,7 +1,7 @@
 from litex.gen import *
 from litex.gen.genlib.resetsync import AsyncResetSynchronizer
 
-from transceiver.line_coding import Encoder
+from transceiver.line_coding import Encoder, Decoder
 from transceiver.gearbox import Gearbox
 
 
@@ -52,11 +52,30 @@ class SERDESPLL(Module):
 
 
 class SERDES(Module):
-    def __init__(self, pll, tx_pads):
+    def __init__(self, pll, tx_pads, rx_pads):
         self.produce_square_wave = Signal()
         self.submodules.encoder = ClockDomainsRenamer("rtio")(
             Encoder(2, True))
+        self.decoders = [ClockDomainsRenamer("rtio")(
+            Decoder(True)) for _ in range(2)]
+        self.submodules += self.decoders
 
+        # clocking
+        self.clock_domains.cd_rtio = ClockDomain()
+        self.clock_domains.cd_serdes = ClockDomain()
+        self.clock_domains.cd_serdes_div = ClockDomain()
+        self.comb += [
+            self.cd_rtio.clk.eq(pll.rtio_clk),
+            self.cd_serdes.clk.eq(pll.serdes_clk),
+            self.cd_serdes_div.clk.eq(pll.serdes_div_clk)
+        ]
+        self.specials += [
+            AsyncResetSynchronizer(self.cd_rtio, ResetSignal()),       # FIXME
+            AsyncResetSynchronizer(self.cd_serdes, ResetSignal()),     # FIXME
+            AsyncResetSynchronizer(self.cd_serdes_div, ResetSignal()), # FIXME
+        ]
+
+        # tx
         self.submodules.tx_gearbox = Gearbox(20, "rtio", 8, "serdes_div")
         self.comb += \
             If(self.produce_square_wave,
@@ -85,16 +104,28 @@ class SERDES(Module):
             )
         ]
 
-        self.clock_domains.cd_rtio = ClockDomain()
-        self.clock_domains.cd_serdes = ClockDomain()
-        self.clock_domains.cd_serdes_div = ClockDomain()
-        self.comb += [
-            self.cd_rtio.clk.eq(pll.rtio_clk),
-            self.cd_serdes.clk.eq(pll.serdes_clk),
-            self.cd_serdes_div.clk.eq(pll.serdes_div_clk)
-        ]
+        # rx
+        self.submodules.rx_gearbox = Gearbox(8, "serdes_div", 20, "rtio")
+        serdes_i = Signal()
         self.specials += [
-            AsyncResetSynchronizer(self.cd_rtio, ResetSignal()),       # FIXME
-            AsyncResetSynchronizer(self.cd_serdes, ResetSignal()),     # FIXME
-            AsyncResetSynchronizer(self.cd_serdes_div, ResetSignal()), # FIXME
+            Instance("IBUFDS",
+                i_I=rx_pads.p,
+                i_IB=rx_pads.n,
+                o_O=serdes_i
+            ),
+            Instance("ISERDESE3",
+                p_DATA_WIDTH=8,
+
+                i_D=serdes_i,
+                i_RST=ResetSignal(),
+                i_FIFO_RD_CLK=0, i_FIFO_RD_EN=0,
+                i_CLK=ClockSignal("serdes"), i_CLK_B=~ClockSignal("serdes"),
+                i_CLKDIV=ClockSignal("serdes_div"),
+                o_Q=self.rx_gearbox.i
+            ),
         ]
+        self.comb += [
+            self.decoders[0].input.eq(self.rx_gearbox.o[:10]),
+            self.decoders[1].input.eq(self.rx_gearbox.o[10:])
+        ]
+

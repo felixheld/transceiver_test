@@ -19,6 +19,10 @@ _io = [
         Subsignal("p", Pins("X")),
         Subsignal("n", Pins("X"))
     ),
+    ("serdes_rx", 0,
+        Subsignal("p", Pins("X")),
+        Subsignal("n", Pins("X"))
+    ),
 ]
 
 
@@ -36,10 +40,17 @@ class SERDESSim(Module):
         self.submodules += pll
 
         tx_pads = platform.request("serdes_tx")
-        serdes = SERDES(pll, tx_pads)
-        self.comb += serdes.produce_square_wave.eq(1)
+        rx_pads = platform.request("serdes_rx")
+        serdes = SERDES(pll, tx_pads, rx_pads)
+        #self.comb += serdes.produce_square_wave.eq(1)
         self.submodules += serdes
 
+        counter = Signal(8)
+        self.sync.rtio += counter.eq(counter + 1)
+        self.comb += [
+            serdes.encoder.d[0].eq(counter),
+            serdes.encoder.d[1].eq(counter)
+        ]
 
 def generate_top():
     platform = Platform()
@@ -63,7 +74,9 @@ wire serdes_n;
 top dut (
     .clk125(clk125),
     .serdes_tx_p(serdes_p),
-    .serdes_tx_n(serdes_n)
+    .serdes_tx_n(serdes_n),
+    .serdes_rx_p(serdes_p),
+    .serdes_rx_n(serdes_n)
 );
 
 endmodule""")
