@@ -1,4 +1,4 @@
-from math import ceil
+from fractions import gcd
 
 from litex.gen import *
 from litex.gen.genlib.resetsync import AsyncResetSynchronizer
@@ -30,7 +30,7 @@ class SERDESPLL(Module):
 
                 # VCO @ 1.25GHz
                 p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=8.0,
-                p_CLKFBOUT_MULT=4, p_DIVCLK_DIVIDE=1,
+                p_CLKFBOUT_MULT=10, p_DIVCLK_DIVIDE=1,
                 i_CLKIN1=refclk, i_CLKFBIN=pll_fb,
                 o_CLKFBOUT=pll_fb,
 
@@ -42,9 +42,9 @@ class SERDESPLL(Module):
                 p_CLKOUT1_DIVIDE=2, p_CLKOUT1_PHASE=0.0,
                 o_CLKOUT1=pll_serdes_clk,
 
-                # 625MHz: serdes_div
-                p_CLKOUT1_DIVIDE=8, p_CLKOUT1_PHASE=0.0,
-                o_CLKOUT1=pll_serdes_div_clk,
+                # 156.25MHz: serdes_div
+                p_CLKOUT2_DIVIDE=8, p_CLKOUT2_PHASE=0.0,
+                o_CLKOUT2=pll_serdes_div_clk,
             ),
             Instance("BUFG", i_I=pll_rtio_clk, o_O=self.rtio_clk),
             Instance("BUFG", i_I=pll_serdes_clk, o_O=self.serdes_clk),
@@ -52,16 +52,9 @@ class SERDESPLL(Module):
         ]
 
 
-def gcd(a,b):
-    """Compute the greatest common divisor of a and b"""
-    while b > 0:
-        a, b = b, a % b
-        return a
-
-
 def lcm(a, b):
     """Compute the lowest common multiple of a and b"""
-    return a * b / gcd(a, b)
+    return int(a * b / gcd(a, b))
 
 
 class SERDESTXGearbox(Module):
@@ -71,6 +64,7 @@ class SERDESTXGearbox(Module):
 
         # # #
 
+        reset = Signal()
         cd_write = ClockDomain()
         cd_read = ClockDomain()
         self.comb += [
@@ -85,32 +79,30 @@ class SERDESTXGearbox(Module):
         self.clock_domains += cd_write, cd_read
 
         storage = Signal(lcm(iwidth, owidth)) # FIXME: best width?
-        wrpointer = Signal(max=len(storage)/iwidth) # FIXME: reset value?
-        rdpointer = Signal(max=len(storage)/owidth) # FIXME: reset value?
-
-        print(len(storage))
+        wrpointer = Signal(max=len(storage)//iwidth) # FIXME: reset value?
+        rdpointer = Signal(max=len(storage)//owidth) # FIXME: reset value?
 
         self.sync.write += \
-            If(wrpointer == len(storage)/iwidth-1,
+            If(wrpointer == len(storage)//iwidth-1,
                 wrpointer.eq(0)
             ).Else(
                 wrpointer.eq(wrpointer + 1)
             )
         cases = {}
-        for i in range(2):
-            cases[i].eq(storage[iwidth*i:iwidth*(i+1)].eq(self.i))
+        for i in range(len(storage)//iwidth):
+            cases[i] = [storage[iwidth*i:iwidth*(i+1)].eq(self.i)]
         self.sync.write += Case(wrpointer, cases)
 
 
         self.sync.read += \
-            If(rdpointer == len(storage)/owidth-1,
+            If(rdpointer == len(storage)//owidth-1,
                 rdpointer.eq(0)
             ).Else(
                 rdpointer.eq(rdpointer + 1)
             )
         cases = {}
-        for i in range(2):
-            cases[i].eq(self.o.eq(storage[owidth*i:owidth*(i+1)]))
+        for i in range(len(storage)//owidth):
+            cases[i] = [self.o.eq(storage[owidth*i:owidth*(i+1)])]
         self.sync.read += Case(rdpointer, cases)
 
 
@@ -139,11 +131,8 @@ class SERDES(Module):
                 o_OQ=serdes_o,
                 i_RST=ResetSignal(),
                 i_CLK=ClockSignal("serdes"), i_CLKDIV=ClockSignal("serdes_div"),
-                i_D1=self.tx_gearbox.o[0], i_D2=self.tx_gearbox.o[1],
-                i_D3=self.tx_gearbox.o[2], i_D4=self.tx_gearbox.o[3],
-                i_D5=self.tx_gearbox.o[4], i_D6=self.tx_gearbox.o[5],
-                i_D7=self.tx_gearbox.o[6], i_D8=self.tx_gearbox.o[7]
-            )
+                i_D=self.tx_gearbox.o
+            ),
             Instance("OBUFDS",
                 i_I=serdes_o,
                 o_O=tx_pads.p,
@@ -156,6 +145,8 @@ class SERDES(Module):
         self.clock_domains.cd_serdes_div = ClockDomain()
         self.comb += [
             self.cd_rtio.clk.eq(pll.rtio_clk),
+            self.cd_serdes.clk.eq(pll.serdes_clk),
+            self.cd_serdes_div.clk.eq(pll.serdes_div_clk)
         ]
         self.specials += [
             AsyncResetSynchronizer(self.cd_rtio, ResetSignal()),       # FIXME
