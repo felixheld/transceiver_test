@@ -11,9 +11,12 @@ from litex.soc.cores.uart.bridge import UARTWishboneBridge
 
 from transceiver.gtx_7series import GTXChannelPLL, GTX
 
+from wishbone.packet import Packetizer, Depacketizer
+from wishbone.etherbone import Etherbone
+
 
 class BaseSoC(SoCCore):
-    def __init__(self, platform, medium="sma"):
+    def __init__(self, platform, medium="sma", protocol=None):
         clk_freq = int(1e9/platform.default_clk_period)
         SoCCore.__init__(self, platform, clk_freq,
             cpu_type=None,
@@ -60,12 +63,33 @@ class BaseSoC(SoCCore):
         counter = Signal(32)
         self.sync += counter.eq(counter + 1)
 
-        self.comb += [
-            gtx.encoder.k[0].eq(1),
-            gtx.encoder.d[0].eq((5 << 5) | 28),
-            gtx.encoder.k[1].eq(0),
-            gtx.encoder.d[1].eq(counter[26:]),
-        ]
+        if protocol is None:
+            self.comb += [
+                gtx.encoder.k[0].eq(1),
+                gtx.encoder.d[0].eq((5 << 5) | 28),
+                gtx.encoder.k[1].eq(0),
+                gtx.encoder.d[1].eq(counter[26:]),
+            ]
+        elif protocol == "wishbone":
+            # TODO: fix cdc and data width
+            packetizer = Packetizer()
+            depacketizer = Depacketizer(int(gtx.rtio_clk_freq))
+            etherbone = Etherbone()
+            self.submodules += packetizer, depacketizer, etherbone
+            self.comb += [
+                etherbone.source.connect(packetizer.sink),
+                gtx.encoder.k[0].eq(0),
+                gtx.encoder.d[0].eq(packetizer.source.data[0:8]),
+                gtx.encoder.k[1].eq(0),
+                gtx.encoder.d[1].eq(packetizer.source.data[8:16]),
+
+                depacketizer.sink.valid.eq(1),
+                depacketizer.sink.data[0:8].eq(gtx.decoders[0].d),
+                depacketizer.sink.data[8:16].eq(gtx.decoders[1].d),
+                depacketizer.source.connect(etherbone.sink),
+            ]
+        else:
+            raise ValueError
 
         self.comb += platform.request("user_led", 4).eq(gtx.rx_ready)
         for i in range(4):
