@@ -6,10 +6,11 @@ from transceiver.gearbox import Gearbox
 
 
 class SERDESPLL(Module):
-    def __init__(self, refclk, refclk_freq, linerate):
+    def __init__(self, refclk_freq, linerate):
         assert refclk_freq == 125e6
         assert linerate == 1.25e9
         self.lock = Signal()
+        self.refclk = Signal()
         self.rtio_clk = Signal()
         self.serdes_clk = Signal()
         self.serdes_div_clk = Signal()
@@ -30,7 +31,7 @@ class SERDESPLL(Module):
                 # VCO @ 1.25GHz
                 p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=8.0,
                 p_CLKFBOUT_MULT=10, p_DIVCLK_DIVIDE=1,
-                i_CLKIN1=refclk, i_CLKFBIN=pll_fb,
+                i_CLKIN1=self.refclk, i_CLKFBIN=pll_fb,
                 o_CLKFBOUT=pll_fb,
 
                 # 62.5MHz: rtio
@@ -43,7 +44,7 @@ class SERDESPLL(Module):
 
                 # 156.25MHz: serdes_div
                 p_CLKOUT2_DIVIDE=8, p_CLKOUT2_PHASE=0.0,
-                o_CLKOUT2=pll_serdes_div_clk,
+                o_CLKOUT2=pll_serdes_div_clk
             ),
             Instance("BUFG", i_I=pll_rtio_clk, o_O=self.rtio_clk),
             Instance("BUFG", i_I=pll_serdes_clk, o_O=self.serdes_clk),
@@ -53,7 +54,7 @@ class SERDESPLL(Module):
 
 
 class SERDES(Module):
-    def __init__(self, pll, tx_pads=None, rx_pads=None):
+    def __init__(self, pll, clock_pads, tx_pads, rx_pads, mode="master"):
         self.produce_square_wave = Signal()
         self.submodules.encoder = ClockDomainsRenamer("rtio")(
             Encoder(2, True))
@@ -62,6 +63,11 @@ class SERDES(Module):
         self.submodules += self.decoders
 
         # clocking
+        # master mode:
+        # - linerate/10 pll refclk provided externally
+        # - linerate/10 clock generated on clock_pads
+        # slave mode:
+        # - linerate/10 pll refclk provided by clock pads
         self.clock_domains.cd_rtio = ClockDomain()
         self.clock_domains.cd_serdes = ClockDomain()
         self.clock_domains.cd_serdes_div = ClockDomain()
@@ -73,62 +79,94 @@ class SERDES(Module):
         self.specials += [
             AsyncResetSynchronizer(self.cd_rtio, ~pll.lock),
             AsyncResetSynchronizer(self.cd_serdes, ~pll.lock),
-            AsyncResetSynchronizer(self.cd_serdes_div, ~pll.lock),
+            AsyncResetSynchronizer(self.cd_serdes_div, ~pll.lock)
         ]
 
-        # tx
-        if tx_pads is not None:
-            self.submodules.tx_gearbox = Gearbox(20, "rtio", 8, "serdes_div")
-            self.comb += \
-                If(self.produce_square_wave,
-                    # square wave @ linerate/20 for scope observation
-                    self.tx_gearbox.i.eq(0b11111111110000000000)
-                ).Else(
-                    self.tx_gearbox.i.eq(Cat(self.encoder.output[0],
-                                             self.encoder.output[1]))
-                )
+        # tx clock
+        if mode == "master":
+            self.submodules.tx_clk_gearbox = Gearbox(20, "rtio", 8, "serdes_div")
+            self.comb += self.tx_clk_gearbox.i.eq(0b11111000001111100000) # linerate/10
 
-            serdes_o = Signal()
+            clk_o = Signal()
             self.specials += [
                 Instance("OSERDESE3",
                     p_DATA_WIDTH=8, p_INIT=0,
                     p_IS_CLK_INVERTED=0, p_IS_CLKDIV_INVERTED=0, p_IS_RST_INVERTED=0,
 
-                    o_OQ=serdes_o,
+                    o_OQ=clk_o,
                     i_RST=ResetSignal("serdes_div"),
                     i_CLK=ClockSignal("serdes"), i_CLKDIV=ClockSignal("serdes_div"),
-                    i_D=self.tx_gearbox.o
+                    i_D=self.tx_clk_gearbox.o
                 ),
                 Instance("OBUFDS",
-                    i_I=serdes_o,
-                    o_O=tx_pads.p,
-                    o_OB=tx_pads.n
+                    i_I=clk_o,
+                    o_O=clock_pads.p,
+                    o_OB=clock_pads.n
                 )
             ]
 
-        # rx
-        if rx_pads is not None:
-            self.submodules.rx_gearbox = Gearbox(8, "serdes_div", 20, "rtio")
-            serdes_i = Signal()
+        # tx
+        self.submodules.tx_gearbox = Gearbox(20, "rtio", 8, "serdes_div")
+        self.comb += \
+            If(self.produce_square_wave,
+                # square wave @ linerate/20 for scope observation
+                self.tx_gearbox.i.eq(0b11111111110000000000)
+            ).Else(
+                self.tx_gearbox.i.eq(Cat(self.encoder.output[0],
+                                         self.encoder.output[1]))
+            )
+
+        serdes_o = Signal()
+        self.specials += [
+            Instance("OSERDESE3",
+                p_DATA_WIDTH=8, p_INIT=0,
+                p_IS_CLK_INVERTED=0, p_IS_CLKDIV_INVERTED=0, p_IS_RST_INVERTED=0,
+
+                o_OQ=serdes_o,
+                i_RST=ResetSignal("serdes_div"),
+                i_CLK=ClockSignal("serdes"), i_CLKDIV=ClockSignal("serdes_div"),
+                i_D=self.tx_gearbox.o
+            ),
+            Instance("OBUFDS",
+                i_I=serdes_o,
+                o_O=tx_pads.p,
+                o_OB=tx_pads.n
+            )
+        ]
+
+        # rx clock
+        if mode == "slave":
+            clk_i = Signal()
             self.specials += [
                 Instance("IBUFDS",
-                    i_I=rx_pads.p,
-                    i_IB=rx_pads.n,
-                    o_O=serdes_i
-                ),
-                Instance("ISERDESE3",
-                    p_DATA_WIDTH=8,
-
-                    i_D=serdes_i,
-                    i_RST=ResetSignal("serdes_div"),
-                    i_FIFO_RD_CLK=0, i_FIFO_RD_EN=0,
-                    i_CLK=ClockSignal("serdes"), i_CLK_B=~ClockSignal("serdes"),
-                    i_CLKDIV=ClockSignal("serdes_div"),
-                    o_Q=self.rx_gearbox.i
-                ),
+                    i_I=clock_pads.p,
+                    i_IB=clock_pads.n,
+                    o_O=clk_i
+                )
             ]
-            self.comb += [
-                self.decoders[0].input.eq(self.rx_gearbox.o[:10]),
-                self.decoders[1].input.eq(self.rx_gearbox.o[10:])
-            ]
+            self.comb += pll.refclk.eq(clk_i)
 
+        # rx
+        self.submodules.rx_gearbox = Gearbox(8, "serdes_div", 20, "rtio")
+        serdes_i = Signal()
+        self.specials += [
+            Instance("IBUFDS",
+                i_I=rx_pads.p,
+                i_IB=rx_pads.n,
+                o_O=serdes_i
+            ),
+            Instance("ISERDESE3",
+                p_DATA_WIDTH=8,
+
+                i_D=serdes_i,
+                i_RST=ResetSignal("serdes_div"),
+                i_FIFO_RD_CLK=0, i_FIFO_RD_EN=0,
+                i_CLK=ClockSignal("serdes"), i_CLK_B=~ClockSignal("serdes"),
+                i_CLKDIV=ClockSignal("serdes_div"),
+                o_Q=self.rx_gearbox.i
+            ),
+        ]
+        self.comb += [
+            self.decoders[0].input.eq(self.rx_gearbox.o[:10]),
+            self.decoders[1].input.eq(self.rx_gearbox.o[10:])
+        ]

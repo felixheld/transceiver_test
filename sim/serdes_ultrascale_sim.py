@@ -15,6 +15,10 @@ from transceiver.serdes_ultrascale import SERDESPLL, SERDES
 
 _io = [
     ("clk125", 0, Pins("X")),
+    ("serdes_clk", 0,
+        Subsignal("p", Pins("X")),
+        Subsignal("n", Pins("X"))
+    ),
     ("serdes_tx", 0,
         Subsignal("p", Pins("X")),
         Subsignal("n", Pins("X"))
@@ -36,12 +40,14 @@ class SERDESSim(Module):
         clk_freq = 125e6
         self.submodules.crg = CRG(platform.request("clk125"))
 
-        pll = SERDESPLL(ClockSignal(), 125e6, 1.25e9)
+        pll = SERDESPLL(125e6, 1.25e9)
         self.submodules += pll
+        self.comb += pll.refclk.eq(ClockSignal())
 
+        clock_pads = platform.request("serdes_clk")
         tx_pads = platform.request("serdes_tx")
         rx_pads = platform.request("serdes_rx")
-        serdes = SERDES(pll, tx_pads, rx_pads)
+        serdes = SERDES(pll, clock_pads, tx_pads, rx_pads, mode="master")
         #self.comb += serdes.produce_square_wave.eq(1)
         self.submodules += serdes
 
@@ -68,11 +74,15 @@ reg clk125;
 initial clk125 = 1'b1;
 always #4 clk125 = ~clk125;
 
-wire serdes_p;
-wire serdes_n;
+wire serdes_clk_p;
+wire serdes_clk_n;
+wire serdes_dat_p;
+wire serdes_dat_n;
 
 top dut (
     .clk125(clk125),
+    .serdes_clk_p(serdes_clk_p),
+    .serdes_clk_n(serdes_clk_n),
     .serdes_tx_p(serdes_p),
     .serdes_tx_n(serdes_n),
     .serdes_rx_p(serdes_p),
