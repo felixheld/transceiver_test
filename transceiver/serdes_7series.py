@@ -71,9 +71,9 @@ class SERDES(Module):
             self.cd_serdes_div.clk.eq(pll.serdes_div_clk)
         ]
         self.specials += [
-            AsyncResetSynchronizer(self.cd_rtio, ResetSignal()),       # FIXME
-            AsyncResetSynchronizer(self.cd_serdes, ResetSignal()),     # FIXME
-            AsyncResetSynchronizer(self.cd_serdes_div, ResetSignal()), # FIXME
+            AsyncResetSynchronizer(self.cd_rtio, ~pll.lock),
+            AsyncResetSynchronizer(self.cd_serdes, ~pll.lock),
+            AsyncResetSynchronizer(self.cd_serdes_div, ~pll.lock)
         ]
 
         # tx
@@ -97,7 +97,7 @@ class SERDES(Module):
 
                     o_OQ=serdes_o,
                     i_OCE=1,
-                    i_RST=~pll.lock,
+                    i_RST=ResetSignal("serdes_div"),
                     i_CLK=ClockSignal("serdes"), i_CLKDIV=ClockSignal("serdes_div"),
                     i_D1=self.tx_gearbox.o[0], i_D2=self.tx_gearbox.o[1],
                     i_D3=self.tx_gearbox.o[2], i_D4=self.tx_gearbox.o[3],
@@ -128,7 +128,7 @@ class SERDES(Module):
 
                     i_D=serdes_i,
                     i_CE1=1,
-                    i_RST=~pll.lock,
+                    i_RST=ResetSignal("serdes_div"),
                     i_CLK=ClockSignal("serdes"), i_CLKB=~ClockSignal("serdes"), i_CLKDIV=ClockSignal("serdes_div"),
                     i_BITSLIP=0,
                     o_Q8=self.rx_gearbox.i[0], o_Q7=self.rx_gearbox.i[1],
