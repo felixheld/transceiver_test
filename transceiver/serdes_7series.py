@@ -160,19 +160,32 @@ class SERDES(Module):
         # rx
         self.submodules.rx_gearbox = Gearbox(8, "serdes_div", 20, "rtio")
         self.submodules.rx_bitslip = ClockDomainsRenamer("rtio")(BitSlip(20))
-        serdes_i = Signal()
+        serdes_i_nodelay = Signal()
+        serdes_i_delayed = Signal()
         self.specials += [
             Instance("IBUFDS",
                 i_I=rx_pads.p,
                 i_IB=rx_pads.n,
-                o_O=serdes_i
+                o_O=serdes_i_nodelay
+            ),
+            Instance("IDELAYE2",
+                p_DELAY_SRC="IDATAIN", p_SIGNAL_PATTERN="DATA",
+                p_CINVCTRL_SEL="FALSE", p_HIGH_PERFORMANCE_MODE="TRUE", p_REFCLK_FREQUENCY=200.0,
+                p_PIPE_SEL="FALSE", p_IDELAY_TYPE="VARIABLE", p_IDELAY_VALUE=0,
+
+                i_C=ClockSignal(),
+                i_LD=0, # FIXME
+                i_CE=0, # FIXME
+                i_LDPIPEEN=0, i_INC=1,
+
+                i_IDATAIN=serdes_i_nodelay, o_DATAOUT=serdes_i_delayed
             ),
             Instance("ISERDESE2",
                 p_DATA_WIDTH=8, p_DATA_RATE="DDR",
                 p_SERDES_MODE="MASTER", p_INTERFACE_TYPE="NETWORKING",
-                p_NUM_CE=1, p_IOBDELAY="NONE",
+                p_NUM_CE=1, p_IOBDELAY="IFD",
 
-                i_D=serdes_i,
+                i_DDLY=serdes_i_delayed,
                 i_CE1=1,
                 i_RST=ResetSignal("serdes_div"),
                 i_CLK=ClockSignal("serdes"), i_CLKB=~ClockSignal("serdes"), i_CLKDIV=ClockSignal("serdes_div"),

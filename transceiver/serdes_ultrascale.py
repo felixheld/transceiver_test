@@ -150,17 +150,31 @@ class SERDES(Module):
         # rx
         self.submodules.rx_gearbox = Gearbox(8, "serdes_div", 20, "rtio")
         self.submodules.rx_bitslip = ClockDomainsRenamer("rtio")(BitSlip(20))
-        serdes_i = Signal()
+        serdes_i_nodelay = Signal()
+        serdes_i_delayed = Signal()
         self.specials += [
             Instance("IBUFDS",
                 i_I=rx_pads.p,
                 i_IB=rx_pads.n,
-                o_O=serdes_i
+                o_O=serdes_i_nodelay
+            ),
+            Instance("IDELAYE3",
+                p_CASCADE="NONE", p_UPDATE_MODE="ASYNC",p_REFCLK_FREQUENCY=200.0,
+                p_IS_CLK_INVERTED=0, p_IS_RST_INVERTED=0,
+                p_DELAY_FORMAT="COUNT", p_DELAY_SRC="IDATAIN",
+                p_DELAY_TYPE="VARIABLE", p_DELAY_VALUE=0,
+
+                i_CLK=ClockSignal(),
+                i_INC=1, i_EN_VTC=0,
+                i_RST=0, # FIXME
+                i_CE=0, # FIXME
+
+                i_IDATAIN=serdes_i_nodelay, o_DATAOUT=serdes_i_delayed
             ),
             Instance("ISERDESE3",
                 p_DATA_WIDTH=8,
 
-                i_D=serdes_i,
+                i_D=serdes_i_delayed,
                 i_RST=ResetSignal("serdes_div"),
                 i_FIFO_RD_CLK=0, i_FIFO_RD_EN=0,
                 i_CLK=ClockSignal("serdes"), i_CLK_B=~ClockSignal("serdes"),
