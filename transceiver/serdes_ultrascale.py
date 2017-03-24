@@ -57,6 +57,49 @@ class SERDESPLL(Module):
         self.comb += self.lock.eq(pll_locked)
 
 
+class PhaseDetector(Module):
+    # TODO: test and handle corner cases
+    def __init__(self):
+        self.mdata = Signal(8)
+        self.sdata = Signal(8)
+
+        self.ce = Signal()
+        self.inc = Signal()
+
+        # # #
+
+        # algorithm:
+        # - if the two samples taken a half-bit period apart (following a transition)
+        #   are the same, then the sampling point is too late and the input delays
+        #   need to be reduced by one tap
+        # - if the two samples taken (following a transition) are different, then
+        #   the sampling point is too early and the input delays need to be increased
+        #   by one tap
+
+        mdata_d = Signal(8)
+        sdata_d = Signal(8)
+        self.sync += [
+            mdata_d.eq(self.mdata),
+            sdata_d.eq(self.sdata)
+        ]
+
+        transition = Signal()
+        self.comb += transition.eq((mdata_d != self.mdata) & (sdata_d != self.sdata))
+
+        self.sync += [
+            self.ce.eq(0),
+            self.inc.eq(0),
+            If(transition,
+                self.ce.eq(1),
+                If(self.mdata == self.sdata,
+                    self.inc.eq(0)
+                ).Else(
+                    self.inc.eq(1)
+                )
+            )
+        ]
+
+
 class SERDES(Module):
     def __init__(self, pll, clock_pads, tx_pads, rx_pads, mode="master"):
         self.produce_square_wave = Signal()
@@ -154,8 +197,9 @@ class SERDES(Module):
         self.submodules.rx_gearbox = Gearbox(8, "serdes_div", 20, "rtio")
         self.submodules.rx_bitslip = ClockDomainsRenamer("rtio")(BitSlip(20))
 
+        self.submodules.phase_detector = ClockDomainsRenamer("serdes_div")(PhaseDetector())
+
         # use 2 serdes for phase detection: 1 master/ 1 slave
-        # see XAPP585/p10
         serdes_m_i_nodelay = Signal()
         serdes_s_i_nodelay = Signal()
         self.specials += [
@@ -179,10 +223,10 @@ class SERDES(Module):
                 p_DELAY_FORMAT="COUNT", p_DELAY_SRC="IDATAIN",
                 p_DELAY_TYPE="VARIABLE", p_DELAY_VALUE=serdes_m_delay_value,
 
-                i_CLK=ClockSignal(),
-                i_INC=1, i_EN_VTC=0,
-                i_RST=0, # FIXME
-                i_CE=0, # FIXME
+                i_CLK=ClockSignal("serdes_div"),
+                i_INC=self.phase_detector.inc, i_EN_VTC=0,
+                i_RST=ResetSignal("serdes_div"),
+                i_CE=self.phase_detector.ce,
 
                 i_IDATAIN=serdes_m_i_nodelay, o_DATAOUT=serdes_m_i_delayed
             ),
@@ -197,6 +241,7 @@ class SERDES(Module):
                 o_Q=serdes_m_q
             ),
         ]
+        self.comb += self.phase_detector.mdata.eq(serdes_m_q)
 
         serdes_s_i_delayed = Signal()
         serdes_s_q = Signal(8)
@@ -210,10 +255,10 @@ class SERDES(Module):
                 p_DELAY_FORMAT="COUNT", p_DELAY_SRC="IDATAIN",
                 p_DELAY_TYPE="VARIABLE", p_DELAY_VALUE=serdes_s_idelay_value,
 
-                i_CLK=ClockSignal(),
-                i_INC=1, i_EN_VTC=0,
-                i_RST=0, # FIXME
-                i_CE=0, # FIXME
+                i_CLK=ClockSignal("serdes_div"),
+                i_INC=self.phase_detector.inc, i_EN_VTC=0,
+                i_RST=ResetSignal("serdes_div"),
+                i_CE=self.phase_detector.ce,
 
                 i_IDATAIN=~serdes_s_i_nodelay, o_DATAOUT=serdes_s_i_delayed
             ),
@@ -228,11 +273,7 @@ class SERDES(Module):
                 o_Q=serdes_s_q
             ),
         ]
-
-        # TODO:
-        # implement phase detection logic by monitoring at serdes_m_q, serdes_s_q and
-        # controlling master and slave idelay values
-        # see XAPP585/p9
+        self.comb += self.phase_detector.sdata.eq(serdes_s_q)
 
         self.comb += [
             self.rx_gearbox.i.eq(serdes_m_q),
