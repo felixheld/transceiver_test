@@ -150,14 +150,22 @@ class SERDES(Module):
         # rx
         self.submodules.rx_gearbox = Gearbox(8, "serdes_div", 20, "rtio")
         self.submodules.rx_bitslip = ClockDomainsRenamer("rtio")(BitSlip(20))
-        serdes_i_nodelay = Signal()
-        serdes_i_delayed = Signal()
+
+        # use 2 serdes for phase detection: 1 master/ 1 slave
+        serdes_m_i_nodelay = Signal()
+        serdes_s_i_nodelay = Signal()
         self.specials += [
-            Instance("IBUFDS",
+            Instance("IBUFDS_DIFF_OUT",
                 i_I=rx_pads.p,
                 i_IB=rx_pads.n,
-                o_O=serdes_i_nodelay
-            ),
+                o_O=serdes_m_i_nodelay,
+                o_OB=serdes_s_i_nodelay,
+            )
+        ]
+
+        serdes_m_i_delayed = Signal()
+        serdes_m_q = Signal(8)
+        self.specials += [
             Instance("IDELAYE3",
                 p_CASCADE="NONE", p_UPDATE_MODE="ASYNC",p_REFCLK_FREQUENCY=200.0,
                 p_IS_CLK_INVERTED=0, p_IS_RST_INVERTED=0,
@@ -169,20 +177,54 @@ class SERDES(Module):
                 i_RST=0, # FIXME
                 i_CE=0, # FIXME
 
-                i_IDATAIN=serdes_i_nodelay, o_DATAOUT=serdes_i_delayed
+                i_IDATAIN=serdes_m_i_nodelay, o_DATAOUT=serdes_m_i_delayed
             ),
             Instance("ISERDESE3",
                 p_DATA_WIDTH=8,
 
-                i_D=serdes_i_delayed,
+                i_D=serdes_m_i_delayed,
                 i_RST=ResetSignal("serdes_div"),
                 i_FIFO_RD_CLK=0, i_FIFO_RD_EN=0,
                 i_CLK=ClockSignal("serdes"), i_CLK_B=~ClockSignal("serdes"),
                 i_CLKDIV=ClockSignal("serdes_div"),
-                o_Q=self.rx_gearbox.i
+                o_Q=serdes_m_q
             ),
         ]
+
+        serdes_s_i_delayed = Signal()
+        serdes_s_q = Signal(8)
+        self.specials += [
+            Instance("IDELAYE3",
+                p_CASCADE="NONE", p_UPDATE_MODE="ASYNC",p_REFCLK_FREQUENCY=200.0,
+                p_IS_CLK_INVERTED=0, p_IS_RST_INVERTED=0,
+                p_DELAY_FORMAT="COUNT", p_DELAY_SRC="IDATAIN",
+                p_DELAY_TYPE="VARIABLE", p_DELAY_VALUE=0,
+
+                i_CLK=ClockSignal(),
+                i_INC=1, i_EN_VTC=0,
+                i_RST=0, # FIXME
+                i_CE=0, # FIXME
+
+                i_IDATAIN=serdes_s_i_nodelay, o_DATAOUT=serdes_s_i_delayed
+            ),
+            Instance("ISERDESE3",
+                p_DATA_WIDTH=8,
+
+                i_D=serdes_s_i_delayed,
+                i_RST=ResetSignal("serdes_div"),
+                i_FIFO_RD_CLK=0, i_FIFO_RD_EN=0,
+                i_CLK=ClockSignal("serdes"), i_CLK_B=~ClockSignal("serdes"),
+                i_CLKDIV=ClockSignal("serdes_div"),
+                o_Q=serdes_s_q
+            ),
+        ]
+
+        # TODO:
+        # implement phase detection logic by monitoring at serdes_m_q, serdes_s_q and
+        # controlling master and slave idelay values
+
         self.comb += [
+            self.rx_gearbox.i.eq(serdes_m_q),
             self.rx_bitslip.value.eq(0), # FIXME
             self.rx_bitslip.i.eq(self.rx_gearbox.o),
             self.decoders[0].input.eq(self.rx_bitslip.o[:10]),

@@ -160,14 +160,22 @@ class SERDES(Module):
         # rx
         self.submodules.rx_gearbox = Gearbox(8, "serdes_div", 20, "rtio")
         self.submodules.rx_bitslip = ClockDomainsRenamer("rtio")(BitSlip(20))
-        serdes_i_nodelay = Signal()
-        serdes_i_delayed = Signal()
+
+        # use 2 serdes for phase detection: 1 master/ 1 slave
+        serdes_m_i_nodelay = Signal()
+        serdes_s_i_nodelay = Signal()
         self.specials += [
-            Instance("IBUFDS",
+            Instance("IBUFDS_DIFF_OUT",
                 i_I=rx_pads.p,
                 i_IB=rx_pads.n,
-                o_O=serdes_i_nodelay
-            ),
+                o_O=serdes_m_i_nodelay,
+                o_OB=serdes_s_i_nodelay,
+            )
+        ]
+
+        serdes_m_i_delayed = Signal()
+        serdes_m_q = Signal(8)
+        self.specials += [
             Instance("IDELAYE2",
                 p_DELAY_SRC="IDATAIN", p_SIGNAL_PATTERN="DATA",
                 p_CINVCTRL_SEL="FALSE", p_HIGH_PERFORMANCE_MODE="TRUE", p_REFCLK_FREQUENCY=200.0,
@@ -178,25 +186,63 @@ class SERDES(Module):
                 i_CE=0, # FIXME
                 i_LDPIPEEN=0, i_INC=1,
 
-                i_IDATAIN=serdes_i_nodelay, o_DATAOUT=serdes_i_delayed
+                i_IDATAIN=serdes_m_i_nodelay, o_DATAOUT=serdes_m_i_delayed
             ),
             Instance("ISERDESE2",
                 p_DATA_WIDTH=8, p_DATA_RATE="DDR",
                 p_SERDES_MODE="MASTER", p_INTERFACE_TYPE="NETWORKING",
                 p_NUM_CE=1, p_IOBDELAY="IFD",
 
-                i_DDLY=serdes_i_delayed,
+                i_DDLY=serdes_m_i_delayed,
                 i_CE1=1,
                 i_RST=ResetSignal("serdes_div"),
                 i_CLK=ClockSignal("serdes"), i_CLKB=~ClockSignal("serdes"), i_CLKDIV=ClockSignal("serdes_div"),
                 i_BITSLIP=0,
-                o_Q8=self.rx_gearbox.i[0], o_Q7=self.rx_gearbox.i[1],
-                o_Q6=self.rx_gearbox.i[2], o_Q5=self.rx_gearbox.i[3],
-                o_Q4=self.rx_gearbox.i[4], o_Q3=self.rx_gearbox.i[5],
-                o_Q2=self.rx_gearbox.i[6], o_Q1=self.rx_gearbox.i[7]
+                o_Q8=serdes_m_q[0], o_Q7=serdes_m_q[1],
+                o_Q6=serdes_m_q[2], o_Q5=serdes_m_q[3],
+                o_Q4=serdes_m_q[4], o_Q3=serdes_m_q[5],
+                o_Q2=serdes_m_q[6], o_Q1=serdes_m_q[7]
             ),
         ]
+
+        serdes_s_i_delayed = Signal()
+        serdes_s_q = Signal(8)
+        self.specials += [
+            Instance("IDELAYE2",
+                p_DELAY_SRC="IDATAIN", p_SIGNAL_PATTERN="DATA",
+                p_CINVCTRL_SEL="FALSE", p_HIGH_PERFORMANCE_MODE="TRUE", p_REFCLK_FREQUENCY=200.0,
+                p_PIPE_SEL="FALSE", p_IDELAY_TYPE="VARIABLE", p_IDELAY_VALUE=0,
+
+                i_C=ClockSignal(),
+                i_LD=0, # FIXME
+                i_CE=0, # FIXME
+                i_LDPIPEEN=0, i_INC=1,
+
+                i_IDATAIN=serdes_s_i_nodelay, o_DATAOUT=serdes_s_i_delayed
+            ),
+            Instance("ISERDESE2",
+                p_DATA_WIDTH=8, p_DATA_RATE="DDR",
+                p_SERDES_MODE="MASTER", p_INTERFACE_TYPE="NETWORKING",
+                p_NUM_CE=1, p_IOBDELAY="IFD",
+
+                i_DDLY=serdes_s_i_delayed,
+                i_CE1=1,
+                i_RST=ResetSignal("serdes_div"),
+                i_CLK=ClockSignal("serdes"), i_CLKB=~ClockSignal("serdes"), i_CLKDIV=ClockSignal("serdes_div"),
+                i_BITSLIP=0,
+                o_Q8=serdes_s_q[0], o_Q7=serdes_s_q[1],
+                o_Q6=serdes_s_q[2], o_Q5=serdes_s_q[3],
+                o_Q4=serdes_s_q[4], o_Q3=serdes_s_q[5],
+                o_Q2=serdes_s_q[6], o_Q1=serdes_s_q[7]
+            ),
+        ]
+
+        # TODO:
+        # implement phase detection logic by monitoring at serdes_m_q, serdes_s_q and
+        # controlling master and slave idelay values
+
         self.comb += [
+            self.rx_gearbox.i.eq(serdes_m_q),
             self.rx_bitslip.value.eq(7), # FIXME
             self.rx_bitslip.i.eq(self.rx_gearbox.o),
             self.decoders[0].input.eq(self.rx_bitslip.o[:10]),
