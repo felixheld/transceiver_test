@@ -224,9 +224,12 @@ class SERDES(Module):
                 p_DELAY_TYPE="VARIABLE", p_DELAY_VALUE=serdes_m_delay_value,
 
                 i_CLK=ClockSignal("serdes_div"),
-                i_INC=self.phase_detector.inc, i_EN_VTC=0,
                 i_RST=ResetSignal("serdes_div"),
-                i_CE=self.phase_detector.ce,
+                # For now desactivate for simulation
+                #i_INC=self.phase_detector.inc, i_EN_VTC=0,
+                #i_CE=self.phase_detector.ce,
+                i_INC=1, i_EN_VTC=0,
+                i_CE=0,
 
                 i_IDATAIN=serdes_m_i_nodelay, o_DATAOUT=serdes_m_i_delayed
             ),
@@ -256,9 +259,12 @@ class SERDES(Module):
                 p_DELAY_TYPE="VARIABLE", p_DELAY_VALUE=serdes_s_idelay_value,
 
                 i_CLK=ClockSignal("serdes_div"),
-                i_INC=self.phase_detector.inc, i_EN_VTC=0,
                 i_RST=ResetSignal("serdes_div"),
-                i_CE=self.phase_detector.ce,
+                # For now desactivate for simulation
+                #i_INC=self.phase_detector.inc, i_EN_VTC=0,
+                #i_CE=self.phase_detector.ce,
+                i_INC=1, i_EN_VTC=0,
+                i_CE=0,
 
                 i_IDATAIN=~serdes_s_i_nodelay, o_DATAOUT=serdes_s_i_delayed
             ),

@@ -233,8 +233,11 @@ class SERDES(Module):
 
                 i_C=ClockSignal("serdes_div"),
                 i_LD=ResetSignal("serdes_div"),
-                i_CE=self.phase_detector.ce,
-                i_LDPIPEEN=0, i_INC=self.phase_detector.inc,
+                # For now desactivate for simulation
+                #i_CE=self.phase_detector.ce,
+                #i_LDPIPEEN=0, i_INC=self.phase_detector.inc,
+                i_CE=0,
+                i_LDPIPEEN=0, i_INC=0,
 
                 i_IDATAIN=serdes_m_i_nodelay, o_DATAOUT=serdes_m_i_delayed
             ),
@@ -268,8 +271,11 @@ class SERDES(Module):
 
                 i_C=ClockSignal("serdes_div"),
                 i_LD=ResetSignal("serdes_div"),
-                i_CE=self.phase_detector.ce,
-                i_LDPIPEEN=0, i_INC=self.phase_detector.inc,
+                # For now desactivate for simulation
+                #i_CE=self.phase_detector.ce,
+                #i_LDPIPEEN=0, i_INC=self.phase_detector.inc,
+                i_CE=0,
+                i_LDPIPEEN=0, i_INC=0,
 
                 i_IDATAIN=~serdes_s_i_nodelay, o_DATAOUT=serdes_s_i_delayed
             ),
