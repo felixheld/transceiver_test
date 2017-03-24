@@ -3,6 +3,7 @@ from litex.gen.genlib.resetsync import AsyncResetSynchronizer
 
 from transceiver.line_coding import Encoder, Decoder
 from transceiver.gearbox import Gearbox
+from transceiver.bitslip import BitSlip
 
 
 class SERDESPLL(Module):
@@ -148,6 +149,7 @@ class SERDES(Module):
 
         # rx
         self.submodules.rx_gearbox = Gearbox(8, "serdes_div", 20, "rtio")
+        self.submodules.rx_bitslip = ClockDomainsRenamer("rtio")(BitSlip(20))
         serdes_i = Signal()
         self.specials += [
             Instance("IBUFDS",
@@ -167,6 +169,8 @@ class SERDES(Module):
             ),
         ]
         self.comb += [
-            self.decoders[0].input.eq(self.rx_gearbox.o[:10]),
-            self.decoders[1].input.eq(self.rx_gearbox.o[10:])
+            self.rx_bitslip.value.eq(0), # FIXME
+            self.rx_bitslip.i.eq(self.rx_gearbox.o),
+            self.decoders[0].input.eq(self.rx_bitslip.o[:10]),
+            self.decoders[1].input.eq(self.rx_bitslip.o[10:])
         ]

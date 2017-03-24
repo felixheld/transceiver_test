@@ -3,6 +3,7 @@ from litex.gen.genlib.resetsync import AsyncResetSynchronizer
 
 from transceiver.line_coding import Encoder, Decoder
 from transceiver.gearbox import Gearbox
+from transceiver.bitslip import BitSlip
 
 
 class SERDESPLL(Module):
@@ -123,20 +124,20 @@ class SERDES(Module):
 
         serdes_o = Signal()
         self.specials += [
-              Instance("OSERDESE2",
-                    p_DATA_WIDTH=8, p_TRISTATE_WIDTH=1,
-                    p_DATA_RATE_OQ="DDR", p_DATA_RATE_TQ="BUF",
-                    p_SERDES_MODE="MASTER",
+            Instance("OSERDESE2",
+                p_DATA_WIDTH=8, p_TRISTATE_WIDTH=1,
+                p_DATA_RATE_OQ="DDR", p_DATA_RATE_TQ="BUF",
+                p_SERDES_MODE="MASTER",
 
-                    o_OQ=serdes_o,
-                    i_OCE=1,
-                    i_RST=ResetSignal("serdes_div"),
-                    i_CLK=ClockSignal("serdes"), i_CLKDIV=ClockSignal("serdes_div"),
-                    i_D1=self.tx_gearbox.o[0], i_D2=self.tx_gearbox.o[1],
-                    i_D3=self.tx_gearbox.o[2], i_D4=self.tx_gearbox.o[3],
-                    i_D5=self.tx_gearbox.o[4], i_D6=self.tx_gearbox.o[5],
-                    i_D7=self.tx_gearbox.o[6], i_D8=self.tx_gearbox.o[7]
-                ),
+                o_OQ=serdes_o,
+                i_OCE=1,
+                i_RST=ResetSignal("serdes_div"),
+                i_CLK=ClockSignal("serdes"), i_CLKDIV=ClockSignal("serdes_div"),
+                i_D1=self.tx_gearbox.o[0], i_D2=self.tx_gearbox.o[1],
+                i_D3=self.tx_gearbox.o[2], i_D4=self.tx_gearbox.o[3],
+                i_D5=self.tx_gearbox.o[4], i_D6=self.tx_gearbox.o[5],
+                i_D7=self.tx_gearbox.o[6], i_D8=self.tx_gearbox.o[7]
+            ),
             Instance("OBUFDS",
                 i_I=serdes_o,
                 o_O=tx_pads.p,
@@ -158,6 +159,7 @@ class SERDES(Module):
 
         # rx
         self.submodules.rx_gearbox = Gearbox(8, "serdes_div", 20, "rtio")
+        self.submodules.rx_bitslip = ClockDomainsRenamer("rtio")(BitSlip(20))
         serdes_i = Signal()
         self.specials += [
             Instance("IBUFDS",
@@ -180,9 +182,10 @@ class SERDES(Module):
                 o_Q4=self.rx_gearbox.i[4], o_Q3=self.rx_gearbox.i[5],
                 o_Q2=self.rx_gearbox.i[6], o_Q1=self.rx_gearbox.i[7]
             ),
-
         ]
         self.comb += [
-            self.decoders[0].input.eq(self.rx_gearbox.o[:10]),
-            self.decoders[1].input.eq(self.rx_gearbox.o[10:])
+            self.rx_bitslip.value.eq(7), # FIXME
+            self.rx_bitslip.i.eq(self.rx_gearbox.o),
+            self.decoders[0].input.eq(self.rx_bitslip.o[:10]),
+            self.decoders[1].input.eq(self.rx_bitslip.o[10:])
         ]
