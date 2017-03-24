@@ -152,6 +152,7 @@ class SERDES(Module):
         self.submodules.rx_bitslip = ClockDomainsRenamer("rtio")(BitSlip(20))
 
         # use 2 serdes for phase detection: 1 master/ 1 slave
+        # see XAPP585/p10
         serdes_m_i_nodelay = Signal()
         serdes_s_i_nodelay = Signal()
         self.specials += [
@@ -222,6 +223,7 @@ class SERDES(Module):
         # TODO:
         # implement phase detection logic by monitoring at serdes_m_q, serdes_s_q and
         # controlling master and slave idelay values
+        # see XAPP585/p9
 
         self.comb += [
             self.rx_gearbox.i.eq(serdes_m_q),
