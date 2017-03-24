@@ -15,11 +15,14 @@ class SERDESPLL(Module):
         self.rtio_clk = Signal()
         self.serdes_clk = Signal()
         self.serdes_div_clk = Signal()
+
         # refclk: 125MHz
         # pll vco: 1250MHz
         # rtio: 62.5MHz
         # serdes = 625MHz
         # serdes_div = 156.25MHz
+        self.linerate = linerate
+
         pll_locked = Signal()
         pll_fb = Signal()
         pll_rtio_clk = Signal()
@@ -166,12 +169,15 @@ class SERDES(Module):
 
         serdes_m_i_delayed = Signal()
         serdes_m_q = Signal(8)
+        # FIXME: idelay taps works differently on ultrascale (2.5ps to 15ps for a tap...)
+        serdes_m_delay_value = int(1/(2*pll.linerate)/15e-12) # half bit period
+        assert serdes_m_delay_value < 512
         self.specials += [
             Instance("IDELAYE3",
                 p_CASCADE="NONE", p_UPDATE_MODE="ASYNC",p_REFCLK_FREQUENCY=200.0,
                 p_IS_CLK_INVERTED=0, p_IS_RST_INVERTED=0,
                 p_DELAY_FORMAT="COUNT", p_DELAY_SRC="IDATAIN",
-                p_DELAY_TYPE="VARIABLE", p_DELAY_VALUE=0,
+                p_DELAY_TYPE="VARIABLE", p_DELAY_VALUE=serdes_m_delay_value,
 
                 i_CLK=ClockSignal(),
                 i_INC=1, i_EN_VTC=0,
@@ -194,19 +200,22 @@ class SERDES(Module):
 
         serdes_s_i_delayed = Signal()
         serdes_s_q = Signal(8)
+        # FIXME: idelay taps works differently on ultrascale (2.5ps to 15ps for a tap...)
+        serdes_s_idelay_value = int(1/(pll.linerate)/15e-12) # bit period
+        assert serdes_s_idelay_value < 512
         self.specials += [
             Instance("IDELAYE3",
                 p_CASCADE="NONE", p_UPDATE_MODE="ASYNC",p_REFCLK_FREQUENCY=200.0,
                 p_IS_CLK_INVERTED=0, p_IS_RST_INVERTED=0,
                 p_DELAY_FORMAT="COUNT", p_DELAY_SRC="IDATAIN",
-                p_DELAY_TYPE="VARIABLE", p_DELAY_VALUE=0,
+                p_DELAY_TYPE="VARIABLE", p_DELAY_VALUE=serdes_s_idelay_value,
 
                 i_CLK=ClockSignal(),
                 i_INC=1, i_EN_VTC=0,
                 i_RST=0, # FIXME
                 i_CE=0, # FIXME
 
-                i_IDATAIN=serdes_s_i_nodelay, o_DATAOUT=serdes_s_i_delayed
+                i_IDATAIN=~serdes_s_i_nodelay, o_DATAOUT=serdes_s_i_delayed
             ),
             Instance("ISERDESE3",
                 p_DATA_WIDTH=8,

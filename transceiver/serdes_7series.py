@@ -15,11 +15,14 @@ class SERDESPLL(Module):
         self.rtio_clk = Signal()
         self.serdes_clk = Signal()
         self.serdes_div_clk = Signal()
+
         # refclk: 125MHz
         # pll vco: 1250MHz
         # rtio: 62.5MHz
         # serdes = 625MHz
         # serdes_div = 156.25MHz
+        self.linerate = linerate
+
         pll_locked = Signal()
         pll_fb = Signal()
         pll_rtio_clk = Signal()
@@ -176,11 +179,13 @@ class SERDES(Module):
 
         serdes_m_i_delayed = Signal()
         serdes_m_q = Signal(8)
+        serdes_m_idelay_value = int(1/(2*pll.linerate)/78e-12) # half bit period
+        assert serdes_m_idelay_value < 32
         self.specials += [
             Instance("IDELAYE2",
                 p_DELAY_SRC="IDATAIN", p_SIGNAL_PATTERN="DATA",
                 p_CINVCTRL_SEL="FALSE", p_HIGH_PERFORMANCE_MODE="TRUE", p_REFCLK_FREQUENCY=200.0,
-                p_PIPE_SEL="FALSE", p_IDELAY_TYPE="VARIABLE", p_IDELAY_VALUE=0,
+                p_PIPE_SEL="FALSE", p_IDELAY_TYPE="VARIABLE", p_IDELAY_VALUE=serdes_m_idelay_value,
 
                 i_C=ClockSignal(),
                 i_LD=0, # FIXME
@@ -208,18 +213,20 @@ class SERDES(Module):
 
         serdes_s_i_delayed = Signal()
         serdes_s_q = Signal(8)
+        serdes_s_idelay_value = int(1/(pll.linerate)/78e-12) # bit period
+        assert serdes_s_idelay_value < 32
         self.specials += [
             Instance("IDELAYE2",
                 p_DELAY_SRC="IDATAIN", p_SIGNAL_PATTERN="DATA",
                 p_CINVCTRL_SEL="FALSE", p_HIGH_PERFORMANCE_MODE="TRUE", p_REFCLK_FREQUENCY=200.0,
-                p_PIPE_SEL="FALSE", p_IDELAY_TYPE="VARIABLE", p_IDELAY_VALUE=0,
+                p_PIPE_SEL="FALSE", p_IDELAY_TYPE="VARIABLE", p_IDELAY_VALUE=serdes_s_idelay_value,
 
                 i_C=ClockSignal(),
                 i_LD=0, # FIXME
                 i_CE=0, # FIXME
                 i_LDPIPEEN=0, i_INC=1,
 
-                i_IDATAIN=serdes_s_i_nodelay, o_DATAOUT=serdes_s_i_delayed
+                i_IDATAIN=~serdes_s_i_nodelay, o_DATAOUT=serdes_s_i_delayed
             ),
             Instance("ISERDESE2",
                 p_DATA_WIDTH=8, p_DATA_RATE="DDR",
