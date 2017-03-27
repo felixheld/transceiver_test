@@ -224,33 +224,6 @@ class EtherbonePacket(Module):
         ]
         self.sink, self.source = self.tx.sink, self.rx.source
 
-
-# etherbone probe
-
-class EtherboneProbe(Module):
-    def __init__(self):
-        self.sink = sink = stream.Endpoint(eth_etherbone_packet_user_description(32))
-        self.source = source = stream.Endpoint(eth_etherbone_packet_user_description(32))
-
-        # # #
-
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
-        fsm.act("IDLE",
-            sink.ready.eq(1),
-            If(sink.valid,
-                sink.ready.eq(0),
-                NextState("PROBE_RESPONSE")
-            )
-        )
-        fsm.act("PROBE_RESPONSE",
-            sink.connect(source),
-            source.pf.eq(0),
-            source.pr.eq(1),
-            If(source.valid & source.last & source.ready,
-                NextState("IDLE")
-            )
-        )
-
 # etherbone record
 
 class EtherboneRecordPacketizer(Packetizer):
@@ -513,23 +486,13 @@ class Etherbone(Module):
 
         # # #
 
-        # decode/encode etherbone packets
-        self.submodules.packet = packet = EtherbonePacket(self.source, self.sink)
+        self.submodules.packet = EtherbonePacket(self.source, self.sink)
+        self.submodules.record = EtherboneRecord()
+        self.submodules.master = EtherboneWishboneMaster()
 
-        # packets can be probe (etherbone discovering) or records with
-        # writes and reads
-        self.submodules.probe = probe = EtherboneProbe()
-        self.submodules.record = record = EtherboneRecord()
-
-        # arbitrate/dispatch probe/records packets
-        dispatcher = Dispatcher(packet.source, [probe.sink, record.sink])
-        self.comb += dispatcher.sel.eq(~packet.source.pf)
-        arbiter = Arbiter([probe.source, record.source], packet.sink)
-        self.submodules += dispatcher, arbiter
-
-        # create mmap wishbone master
-        self.submodules.master = master = EtherboneWishboneMaster()
         self.comb += [
-            record.receiver.source.connect(master.sink),
-            master.source.connect(record.sender.sink)
+        	self.packet.source.connect(self.record.sink),
+        	self.record.source.connect(self.packet.sink),
+        	record.receiver.source.connect(self.master.sink),
+        	self.master.source.connect(record.sender.sink)
         ]
