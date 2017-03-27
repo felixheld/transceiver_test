@@ -15,17 +15,17 @@ serdes_io = [
     ("serdes_clk", 0, # JC1
         Subsignal("p", Pins("U12")),
         Subsignal("n", Pins("V12")),
-        IOStandard("LVDS_25"),
+        IOStandard("TMDS_33"),
     ),
     ("serdes_tx", 0, # JC2
         Subsignal("p", Pins("V10")),
         Subsignal("n", Pins("V11")),
-        IOStandard("LVDS_25"),
+        IOStandard("TMDS_33"),
     ),
     ("serdes_rx", 0, # JC4
         Subsignal("p", Pins("T13")),
         Subsignal("n", Pins("U13")),
-        IOStandard("LVDS_25"),
+        IOStandard("TMDS_33"),
     ),
 ]
 
@@ -33,36 +33,44 @@ serdes_io = [
 class _CRG(Module):
     def __init__(self, platform):
         self.clock_domains.cd_sys = ClockDomain()
+        self.clock_domains.cd_clk125 = ClockDomain()
         self.clock_domains.cd_clk200 = ClockDomain()
 
         clk100 = platform.request("clk100")
-        rst = platform.request("cpu_reset")
 
         pll_locked = Signal()
         pll_fb = Signal()
-        self.pll_sys = Signal()
+        pll_sys = Signal()
         pll_clk200 = Signal()
+        pll_clk125 = Signal()
         self.specials += [
             Instance("PLLE2_BASE",
                      p_STARTUP_WAIT="FALSE", o_LOCKED=pll_locked,
 
-                     # VCO @ 1600 MHz
+                     # VCO @ 1000 MHz
                      p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=10.0,
-                     p_CLKFBOUT_MULT=16, p_DIVCLK_DIVIDE=1,
+                     p_CLKFBOUT_MULT=10, p_DIVCLK_DIVIDE=1,
                      i_CLKIN1=clk100, i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
 
                      # 100 MHz
-                     p_CLKOUT0_DIVIDE=16, p_CLKOUT0_PHASE=0.0,
-                     o_CLKOUT0=self.pll_sys,
+                     p_CLKOUT0_DIVIDE=10, p_CLKOUT0_PHASE=0.0,
+                     o_CLKOUT0=pll_sys,
 
                      # 200 MHz
-                     p_CLKOUT1_DIVIDE=8, p_CLKOUT1_PHASE=0.0,
+                     p_CLKOUT1_DIVIDE=5, p_CLKOUT1_PHASE=0.0,
                      o_CLKOUT1=pll_clk200,
+
+                     # 125 MHz
+                     p_CLKOUT2_DIVIDE=8, p_CLKOUT2_PHASE=0.0,
+                     o_CLKOUT2=pll_clk125,
+
             ),
-            Instance("BUFG", i_I=self.pll_sys, o_O=self.cd_sys.clk),
+            Instance("BUFG", i_I=pll_sys, o_O=self.cd_sys.clk),
             Instance("BUFG", i_I=pll_clk200, o_O=self.cd_clk200.clk),
-            AsyncResetSynchronizer(self.cd_sys, ~pll_locked | ~rst),
-            AsyncResetSynchronizer(self.cd_clk200, ~pll_locked | rst)
+            Instance("BUFG", i_I=pll_clk125, o_O=self.cd_clk125.clk),
+            AsyncResetSynchronizer(self.cd_sys, ~pll_locked),
+            AsyncResetSynchronizer(self.cd_clk200, ~pll_locked),
+            AsyncResetSynchronizer(self.cd_clk125, ~pll_locked)
         ]
 
         reset_counter = Signal(4, reset=15)
@@ -97,7 +105,7 @@ class SERDESTestSoC(BaseSoC):
         BaseSoC.__init__(self, platform)
 
         pll = SERDESPLL(125e6, 1.25e9)
-        self.comb += pll.refclk.eq(ClockSignal())
+        self.comb += pll.refclk.eq(self.crg.cd_clk125.clk)
         self.submodules += pll
 
         clock_pads = platform.request("serdes_clk")
@@ -121,12 +129,29 @@ class SERDESTestSoC(BaseSoC):
             serdes.cd_serdes.clk,
             serdes.cd_serdes_div.clk)
 
-        counter = Signal(8)
+        counter = Signal(32)
         self.sync.rtio += counter.eq(counter + 1)
         self.comb += [
             serdes.encoder.d[0].eq(counter),
             serdes.encoder.d[1].eq(counter)
         ]
+
+        sys_counter = Signal(32)
+        self.sync.sys += sys_counter.eq(sys_counter + 1)
+        self.comb += platform.request("user_led", 0).eq(sys_counter[26])
+
+        rtio_counter = Signal(32)
+        self.sync.rtio += rtio_counter.eq(rtio_counter + 1)
+        self.comb += platform.request("user_led", 1).eq(rtio_counter[26])
+
+        serdes_div_counter = Signal(32)
+        self.sync.serdes_div += serdes_div_counter.eq(serdes_div_counter + 1)
+        self.comb += platform.request("user_led", 2).eq(serdes_div_counter[26])
+
+        serdes_counter = Signal(32)
+        self.sync.serdes += serdes_counter.eq(serdes_counter + 1)
+        self.comb += platform.request("user_led", 3).eq(serdes_counter[26])
+
 
 def main():
     platform = arty.Platform()
