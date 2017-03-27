@@ -46,8 +46,8 @@ class GTPQuadPLL(Module):
                 i_PLL1PD=1,
              )
 
-    @classmethod
-    def compute_config(self, refclk_freq, linerate):
+    @staticmethod
+    def compute_config(refclk_freq, linerate):
         for n1 in 4, 5:
             for n2 in 1, 2, 3, 4, 5:
                 for m in 1, 2:

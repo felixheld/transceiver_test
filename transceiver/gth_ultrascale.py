@@ -15,8 +15,8 @@ class GTHChannelPLL(Module):
         self.lock = Signal()
         self.config = self.compute_config(refclk_freq, linerate)
 
-    @classmethod
-    def compute_config(self, refclk_freq, linerate):
+    @staticmethod
+    def compute_config(refclk_freq, linerate):
         for n1 in 4, 5:
             for n2 in 1, 2, 3, 4, 5:
                 for m in 1, 2:
