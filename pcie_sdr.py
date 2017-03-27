@@ -52,24 +52,29 @@ class Platform(XilinxPlatform):
 
 
 class BaseSoC(SoCCore):
-    csr_map = {
-        "analyzer": 20
-    }
-    csr_map.update(SoCCore.csr_map)
     def __init__(self, platform):
-        sys_clk = Signal()
-        sys_clk_freq = int(100e6)
-        SoCCore.__init__(self, platform, sys_clk_freq,
+        self.sys_clk = Signal()
+        self.sys_clk_freq = int(100e6)
+        SoCCore.__init__(self, platform, self.sys_clk_freq,
             cpu_type=None,
             csr_data_width=32,
             with_uart=False,
             ident="DRTIO GTP PCIE SDR Test Design",
             with_timer=False
         )
-        self.submodules.crg = CRG(sys_clk)
+        self.submodules.crg = CRG(self.sys_clk)
         self.add_cpu_or_bridge(UARTWishboneBridge(platform.request("serial"),
-                                                  sys_clk_freq, baudrate=115200))
+                                                  self.sys_clk_freq, baudrate=115200))
         self.add_wb_master(self.cpu_or_bridge.wishbone)
+
+
+class GTPTestSoC(BaseSoC):
+    csr_map = {
+        "analyzer": 20
+    }
+    csr_map.update(BaseSoC.csr_map)
+    def __init__(self, platform):
+        BaseSoC.__init__(self, platform)
 
         refclk100 = Signal()
         refclk100_pads = platform.request("clk100")
@@ -79,7 +84,7 @@ class BaseSoC(SoCCore):
                 i_I=refclk100_pads.p,
                 i_IB=refclk100_pads.n,
                 o_O=refclk100),
-            Instance("BUFG", i_I=refclk100, o_O=sys_clk)
+            Instance("BUFG", i_I=refclk100, o_O=self.sys_clk)
         ]
 
         refclk125 = Signal()
@@ -91,7 +96,7 @@ class BaseSoC(SoCCore):
                 # VCO @ 1GHz
                 p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=10.0,
                 p_CLKFBOUT_MULT=10, p_DIVCLK_DIVIDE=1,
-                i_CLKIN1=sys_clk, i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
+                i_CLKIN1=self.sys_clk, i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
 
                 # 125MHz
                 p_CLKOUT0_DIVIDE=8, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=refclk125
@@ -107,7 +112,7 @@ class BaseSoC(SoCCore):
         tx_pads = platform.request("sfp_tx")
         rx_pads = platform.request("sfp_rx")
 
-        gtp = GTP(qpll, tx_pads, rx_pads, sys_clk_freq,
+        gtp = GTP(qpll, tx_pads, rx_pads, self.sys_clk_freq,
             clock_aligner=True, internal_loopback=False)
         self.submodules += gtp
 
@@ -152,7 +157,7 @@ class BaseSoC(SoCCore):
 
 def main():
     platform = Platform()
-    soc = BaseSoC(platform)
+    soc = GTPTestSoC(platform)
     builder = Builder(soc, output_dir="build_pcie_sdr", csr_csv="test/csr.csv")
     vns = builder.build()
     soc.do_exit(vns)

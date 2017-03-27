@@ -16,7 +16,7 @@ from wishbone.etherbone import Etherbone
 
 
 class BaseSoC(SoCCore):
-    def __init__(self, platform, medium="sma", protocol=None):
+    def __init__(self, platform):
         clk_freq = int(1e9/platform.default_clk_period)
         SoCCore.__init__(self, platform, clk_freq,
             cpu_type=None,
@@ -29,6 +29,11 @@ class BaseSoC(SoCCore):
         self.add_cpu_or_bridge(UARTWishboneBridge(platform.request("serial"),
                                                   clk_freq, baudrate=115200))
         self.add_wb_master(self.cpu_or_bridge.wishbone)
+
+
+class GTXTestSoC(SoCCore):
+    def __init__(self, platform, medium="sma", protocol=None):
+        BaseSoC.__init__(self, platform)
 
         refclk = Signal()
         refclk_pads = platform.request("sgmii_clock")
@@ -117,7 +122,7 @@ class BaseSoC(SoCCore):
 
 def main():
     platform = kc705.Platform()
-    soc = BaseSoC(platform)
+    soc = GTXTestSoC(platform)
     builder = Builder(soc, output_dir="build_kc705", csr_csv="test/csr.csv")
     builder.build()
 
