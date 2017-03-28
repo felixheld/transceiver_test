@@ -215,6 +215,11 @@ class SERDESTestSoC(BaseSoC):
 
 
 class WishboneBridgeTestSoC(BaseSoC):
+    csr_map = {
+        "analyzer": 20
+    }
+    csr_map.update(BaseSoC.csr_map)
+
     mem_map = {
         "wbslave": 0x30000000,  # (shadow @0xb0000000)
     }
@@ -243,6 +248,37 @@ class WishboneBridgeTestSoC(BaseSoC):
             slave_port.source.connect(master_port.sink),
             master_port.source.connect(slave_port.sink)
         ]
+
+         # analyzer
+        analyzer_signals = [
+            slave_etherbone.wishbone.bus.adr,
+            slave_etherbone.wishbone.bus.dat_w,
+            slave_etherbone.wishbone.bus.dat_r,
+            slave_etherbone.wishbone.bus.sel,
+            slave_etherbone.wishbone.bus.cyc,
+            slave_etherbone.wishbone.bus.stb,
+            slave_etherbone.wishbone.bus.ack,
+            slave_etherbone.wishbone.bus.we,
+            slave_etherbone.wishbone.bus.cti,
+            slave_etherbone.wishbone.bus.bte,
+            slave_etherbone.wishbone.bus.err,
+
+            master_etherbone.wishbone.bus.adr,
+            master_etherbone.wishbone.bus.dat_w,
+            master_etherbone.wishbone.bus.dat_r,
+            master_etherbone.wishbone.bus.sel,
+            master_etherbone.wishbone.bus.cyc,
+            master_etherbone.wishbone.bus.stb,
+            master_etherbone.wishbone.bus.ack,
+            master_etherbone.wishbone.bus.we,
+            master_etherbone.wishbone.bus.cti,
+            master_etherbone.wishbone.bus.bte,
+            master_etherbone.wishbone.bus.err
+        ]
+        self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 512)
+
+    def do_exit(self, vns):
+        self.analyzer.export_csv(vns, "test/analyzer.csv")
 
 
 def main():
