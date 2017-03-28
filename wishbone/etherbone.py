@@ -469,6 +469,7 @@ class EtherboneWishboneMaster(Module):
 
 
 class EtherboneWishboneSlave(Module):
+    # TODO: add support for buffered writes
     def __init__(self):
         self.bus = bus = wishbone.Interface()
         self.sink = sink = stream.Endpoint(eth_etherbone_mmap_description(32))
@@ -476,7 +477,49 @@ class EtherboneWishboneSlave(Module):
 
         # # #
 
-        # TODO
+        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        fsm.act("IDLE",
+            sink.ready.eq(1),
+            If(bus.stb & bus.cyc,
+                If(bus.we,
+                    NextState("SEND_WRITE")
+                ).Else(
+                    NextState("SEND_READ")
+                )
+            )
+        )
+        fsm.act("SEND_WRITE",
+            source.valid.eq(1),
+            source.last.eq(1),
+            source.base_addr.eq(bus.adr),
+            source.addr.eq(0),
+            source.count.eq(1),
+            source.be.eq(bus.sel),
+            source.we.eq(1),
+            If(source.valid & source.ready,
+                bus.ack.eq(1),
+                NextState("IDLE")
+            )
+        )
+        fsm.act("SEND_READ",
+            source.valid.eq(1),
+            source.last.eq(1),
+            source.base_addr.eq(bus.adr),
+            source.addr.eq(0),
+            source.count.eq(1),
+            source.be.eq(bus.sel),
+            source.we.eq(0),
+            If(source.valid & source.ready,
+                NextState("WAIT_READ")
+            )
+        )
+        fsm.act("WAIT_READ",
+            sink.ready.eq(1),
+            If(sink.valid & ~sink.we,
+                bus.ack.eq(1),
+                bus.dat_r.eq(sink.data)
+            )
+        )
 
 
 # etherbone
