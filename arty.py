@@ -215,15 +215,21 @@ class SERDESTestSoC(BaseSoC):
 
 
 class WishboneBridgeTestSoC(BaseSoC):
+    mem_map = {
+        "wbslave": 0x30000000,  # (shadow @0xb0000000)
+    }
+    mem_map.update(BaseSoC.mem_map)
     def __init__(self, platform):
         BaseSoC.__init__(self, platform)
 
         # wishbone slave
-        # TODO: add wishbone slave stimulation
         slave_core = packet.Core(self.clk_freq)
         slave_port = slave_core.crossbar.get_port(0x01)
         slave_etherbone = etherbone.Etherbone(mode="slave")
         self.submodules += slave_core, slave_etherbone
+        self.add_wb_slave(mem_decoder(self.mem_map["wbslave"]), slave_etherbone.wishbone.bus)
+        self.add_memory_region("wbslave", self.mem_map["wbslave"] | self.shadow_base, 0x1000)
+
 
         # wishbone master
         master_core = packet.Core(self.clk_freq)
