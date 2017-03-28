@@ -199,8 +199,8 @@ class GTH(Module):
                 i_RXLPMEN=0,
 
                 # RX clock
-				i_RXRATE=0,
-				i_RXDLYBYPASS=0,
+                i_RXRATE=0,
+                i_RXDLYBYPASS=0,
                 p_RXBUF_EN="FALSE",
                 p_RX_XCLK_SEL="RXUSR",
                 i_RXSYSCLKSEL=0b00,
@@ -224,10 +224,10 @@ class GTH(Module):
                 o_RXCTRL1=Cat(rxdata[9], rxdata[19]),
                 o_RXDATA=Cat(rxdata[:8], rxdata[10:18]),
 
-				# RX electrical
-				i_RXPD=0b00,
-				p_RX_CLKMUX_EN=1,
-				i_RXELECIDLEMODE=0b11,
+                # RX electrical
+                i_RXPD=0b00,
+                p_RX_CLKMUX_EN=1,
+                i_RXELECIDLEMODE=0b11,
 
                 # Polarity
                 i_TXPOLARITY=tx_polarity,

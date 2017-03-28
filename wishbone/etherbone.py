@@ -482,8 +482,8 @@ class Etherbone(Module):
         self.submodules.master = EtherboneWishboneMaster()
 
         self.comb += [
-        	self.packet.source.connect(self.record.sink),
-        	self.record.source.connect(self.packet.sink),
-        	self.record.receiver.source.connect(self.master.sink),
-        	self.master.source.connect(self.record.sender.sink)
+            self.packet.source.connect(self.record.sink),
+            self.record.source.connect(self.packet.sink),
+            self.record.receiver.source.connect(self.master.sink),
+            self.master.source.connect(self.record.sender.sink)
         ]

@@ -186,11 +186,11 @@ class GTX(Module):
 
                 # RX AFE
                 p_RX_DFE_XYD_CFG=0,
-				# tests results @ 1.25Gbps:
-				# (1) SFP 10GbE optical loopback
-				# (2) SFP copper loopback
-				# Xilinx's default value: 0x3008e56a
-				#p_RX_DFE_KL_CFG2=0x3008e56a, # (1): errors+++, (2): errors+
+                # tests results @ 1.25Gbps:
+                # (1) SFP 10GbE optical loopback
+                # (2) SFP copper loopback
+                # Xilinx's default value: 0x3008e56a
+                #p_RX_DFE_KL_CFG2=0x3008e56a, # (1): errors+++, (2): errors+
                 p_RX_DFE_KL_CFG2=0x3310180c, # (1): working, (2): not working
                 #p_RX_DFE_KL_CFG2=0x3010d90c, # (1): errors+, (2): not working
                 #p_RX_DFE_KL_CFG2=0x301148ac, # (1): errors+, (2): not working
@@ -244,8 +244,8 @@ class GTX(Module):
         tx_bufr_div = cpll.config["clkin"]/self.rtio_clk_freq
         assert tx_bufr_div == int(tx_bufr_div)
         self.specials += [
-        	Instance("BUFG", i_I=self.txoutclk, o_O=txoutclk_bufg),
-        	# TODO: use MMCM instead?
+            Instance("BUFG", i_I=self.txoutclk, o_O=txoutclk_bufg),
+            # TODO: use MMCM instead?
             Instance("BUFR", i_I=txoutclk_bufg, o_O=txoutclk_bufr,
                 i_CE=1, p_BUFR_DIVIDE=str(int(tx_bufr_div))),
             Instance("BUFG", i_I=txoutclk_bufr, o_O=self.cd_rtio.clk),

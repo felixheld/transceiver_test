@@ -16,8 +16,8 @@ from litescope import LiteScopeAnalyzer
 
 
 serdes_io = [
-	# Note: We need to use TMDS (LVDS not supported on 3.3V PMODS)
-	# which requires an external 50 ohms pull-up on each diff pin.
+    # Note: We need to use TMDS (LVDS not supported on 3.3V PMODS)
+    # which requires an external 50 ohms pull-up on each diff pin.
     ("serdes_clk", 0, # JC1
         Subsignal("p", Pins("U12")),
         Subsignal("n", Pins("V12")),
@@ -107,18 +107,19 @@ class BaseSoC(SoCCore):
 
 
 class SERDESControl(Module, AutoCSR):
-	def __init__(self):
-		self._rx_bitslip_value = CSRStorage(5)
-		self._rx_delay_rst = CSR()
-		self._rx_delay_inc = CSRStorage()
-		self._rx_delay_ce = CSR()
+    def __init__(self):
+        self._rx_bitslip_value = CSRStorage(5)
+        self._rx_delay_rst = CSR()
+        self._rx_delay_inc = CSRStorage()
+        self._rx_delay_ce = CSR()
 
-		# # #
+        # # #
 
-		self.rx_bitslip_value = self._rx_bitslip_value.storage
-		self.rx_delay_rst = self._rx_delay_rst.r & self._rx_delay_rst.re
-		self.rx_delay_inc = self._rx_delay_inc.storage
-		self.rx_delay_ce = self._rx_delay_ce.r & self._rx_delay_ce.re
+        self.rx_bitslip_value = self._rx_bitslip_value.storage
+        self.rx_delay_rst = self._rx_delay_rst.r & self._rx_delay_rst.re
+        self.rx_delay_inc = self._rx_delay_inc.storage
+        self.rx_delay_ce = self._rx_delay_ce.r & self._rx_delay_ce.re
+
 
 class SERDESTestSoC(BaseSoC):
     csr_map = {
@@ -142,10 +143,10 @@ class SERDESTestSoC(BaseSoC):
 
         self.submodules.serdes_control =  serdes_control = SERDESControl()
         self.comb += [
-        	serdes.rx_bitslip_value.eq(serdes_control.rx_bitslip_value),
-        	serdes.rx_delay_rst.eq(serdes_control.rx_delay_rst),
-        	serdes.rx_delay_inc.eq(serdes_control.rx_delay_inc),
-        	serdes.rx_delay_ce.eq(serdes_control.rx_delay_ce)
+            serdes.rx_bitslip_value.eq(serdes_control.rx_bitslip_value),
+            serdes.rx_delay_rst.eq(serdes_control.rx_delay_rst),
+            serdes.rx_delay_inc.eq(serdes_control.rx_delay_inc),
+            serdes.rx_delay_ce.eq(serdes_control.rx_delay_ce)
         ]
 
         self.crg.cd_sys.clk.attr.add("keep")
@@ -186,12 +187,12 @@ class SERDESTestSoC(BaseSoC):
         self.comb += platform.request("user_led", 3).eq(serdes_counter[26])
 
         analyzer_signals = [
-        	serdes.encoder.k[0],
-        	serdes.encoder.d[0],
-        	serdes.encoder.output[0],
-        	serdes.encoder.k[1],
-        	serdes.encoder.d[1],
-        	serdes.encoder.output[1],
+            serdes.encoder.k[0],
+            serdes.encoder.d[0],
+            serdes.encoder.output[0],
+            serdes.encoder.k[1],
+            serdes.encoder.d[1],
+            serdes.encoder.output[1],
 
             serdes.decoders[0].input,
             serdes.decoders[0].d,
