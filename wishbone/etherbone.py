@@ -264,12 +264,14 @@ class EtherboneRecordReceiver(Module):
         fsm.act("IDLE",
             fifo.source.ready.eq(1),
             counter_reset.eq(1),
+            If(fifo.source.rcount, fifo.source.ready.eq(0)), # FIXME
             If(fifo.source.valid,
                 base_addr_update.eq(1),
                 If(fifo.source.wcount,
                     NextState("RECEIVE_WRITES")
                 ).Elif(fifo.source.rcount,
                     NextState("RECEIVE_READS")
+
                 )
             )
         )
@@ -491,11 +493,12 @@ class EtherboneWishboneSlave(Module):
         fsm.act("SEND_WRITE",
             source.valid.eq(1),
             source.last.eq(1),
-            source.base_addr.eq(bus.adr),
+            source.base_addr[2:].eq(bus.adr),
             source.addr.eq(0),
             source.count.eq(1),
             source.be.eq(bus.sel),
             source.we.eq(1),
+            source.data.eq(bus.dat_w),
             If(source.valid & source.ready,
                 bus.ack.eq(1),
                 NextState("IDLE")
@@ -504,7 +507,7 @@ class EtherboneWishboneSlave(Module):
         fsm.act("SEND_READ",
             source.valid.eq(1),
             source.last.eq(1),
-            source.base_addr.eq(bus.adr),
+            source.base_addr[2:].eq(bus.adr),
             source.addr.eq(0),
             source.count.eq(1),
             source.be.eq(bus.sel),
@@ -515,9 +518,10 @@ class EtherboneWishboneSlave(Module):
         )
         fsm.act("WAIT_READ",
             sink.ready.eq(1),
-            If(sink.valid & ~sink.we,
+            If(sink.valid & sink.we,
                 bus.ack.eq(1),
-                bus.dat_r.eq(sink.data)
+                bus.dat_r.eq(sink.data),
+                NextState("IDLE")
             )
         )
 
