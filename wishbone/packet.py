@@ -25,13 +25,8 @@ def phy_description(dw):
 
 
 def user_description(dw):
-    param_layout = [
-        ("length", 32)
-    ]
-    payload_layout = [
-        ("data", dw),
-        ("error", dw//8)
-    ]
+    param_layout = [("length", 32)]
+    payload_layout = [("data", dw)]
     return EndpointDescription(payload_layout, param_layout)
 
 

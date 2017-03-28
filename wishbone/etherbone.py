@@ -56,10 +56,7 @@ def _remove_from_layout(layout, *args):
 
 def eth_etherbone_packet_description(dw):
     param_layout = etherbone_packet_header.get_layout()
-    payload_layout = [
-        ("data",     dw),
-        ("error", dw//8)
-    ]
+    payload_layout = [("data", dw)]
     return EndpointDescription(payload_layout, param_layout)
 
 def eth_etherbone_packet_user_description(dw):
@@ -70,18 +67,12 @@ def eth_etherbone_packet_user_description(dw):
                                        "addrsize",
                                        "version")
     param_layout += user_description(dw).param_layout
-    payload_layout = [
-        ("data",     dw),
-        ("error", dw//8)
-    ]
+    payload_layout = [("data", dw)]
     return EndpointDescription(payload_layout, param_layout)
 
 def eth_etherbone_record_description(dw):
     param_layout = etherbone_record_header.get_layout()
-    payload_layout = [
-        ("data",     dw),
-        ("error", dw//8)
-    ]
+    payload_layout = [("data", dw)]
     return EndpointDescription(payload_layout, param_layout)
 
 def eth_etherbone_mmap_description(dw):
@@ -493,6 +484,6 @@ class Etherbone(Module):
         self.comb += [
         	self.packet.source.connect(self.record.sink),
         	self.record.source.connect(self.packet.sink),
-        	record.receiver.source.connect(self.master.sink),
-        	self.master.source.connect(record.sender.sink)
+        	self.record.receiver.source.connect(self.master.sink),
+        	self.master.source.connect(self.record.sender.sink)
         ]
