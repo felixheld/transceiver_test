@@ -251,9 +251,9 @@ class WishboneBridgeTestSoC(BaseSoC):
 
          # analyzer
         analyzer_signals = [
-            slave_etherbone.wishbone.bus.adr,
-            slave_etherbone.wishbone.bus.dat_w,
-            slave_etherbone.wishbone.bus.dat_r,
+            #slave_etherbone.wishbone.bus.adr,
+            #slave_etherbone.wishbone.bus.dat_w,
+            #slave_etherbone.wishbone.bus.dat_r,
             slave_etherbone.wishbone.bus.sel,
             slave_etherbone.wishbone.bus.cyc,
             slave_etherbone.wishbone.bus.stb,
