@@ -14,6 +14,7 @@ from transceiver.serdes_7series import SERDESPLL, SERDES
 
 from wishbone import packet
 from wishbone import etherbone
+from litex.soc.interconnect.wishbone import SRAM
 
 from litescope import LiteScopeAnalyzer
 
@@ -225,11 +226,11 @@ class WishboneBridgeTestSoC(BaseSoC):
         self.submodules += slave_core, slave_etherbone
 
         # wishbone master
-        # TODO: connect wishbone master to something
         master_core = packet.Core(self.clk_freq)
         master_port = master_core.crossbar.get_port(0x01)
         master_etherbone = etherbone.Etherbone(mode="master")
-        self.submodules += master_core, master_etherbone
+        master_sram = SRAM(1024, bus=master_etherbone.wishbone.bus)
+        self.submodules += master_core, master_etherbone, master_sram
 
         # connect etherbone directly
         self.comb += [
