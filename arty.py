@@ -97,7 +97,7 @@ class BaseSoC(SoCCore):
             cpu_type=None,
             csr_data_width=32,
             with_uart=False,
-            ident="DRTIO GTX KC705 Test Design",
+            ident="ARTY SERDES Test Design",
             with_timer=False
         )
         self.submodules.crg = _CRG(platform)
@@ -201,6 +201,9 @@ class SERDESTestSoC(BaseSoC):
             serdes.decoders[1].k,
         ]
         self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 512, cd="rtio")
+
+        # we are running the PLLE2_BASE out of spec..., avoid error
+        platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks PDRC-43]")
 
     def do_exit(self, vns):
         self.analyzer.export_csv(vns, "test/analyzer.csv")
