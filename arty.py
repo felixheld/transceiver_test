@@ -12,6 +12,9 @@ from litex.soc.cores.uart.bridge import UARTWishboneBridge
 
 from transceiver.serdes_7series import SERDESPLL, SERDES
 
+from wishbone.packet import Packetizer, Depacketizer
+from wishbone.etherbone import Etherbone
+
 from litescope import LiteScopeAnalyzer
 
 
@@ -210,10 +213,26 @@ class SERDESTestSoC(BaseSoC):
         self.analyzer.export_csv(vns, "test/analyzer.csv")
 
 
+class WishboneBridgeTestSoC(BaseSoC):
+    def __init__(self, platform):
+        BaseSoC.__init__(self, platform)
+
+        packetizer = Packetizer()
+        depacketizer = Depacketizer(self.clk_freq)
+        etherbone = Etherbone()
+        self.submodules += packetizer, depacketizer, etherbone
+        self.comb += [
+            etherbone.source.connect(packetizer.sink),
+            packetizer.source.connect(depacketizer.sink),
+            depacketizer.source.connect(etherbone.sink)
+        ]
+
+
 def main():
     platform = arty.Platform()
     platform.add_extension(serdes_io)
-    soc = SERDESTestSoC(platform)
+    #soc = SERDESTestSoC(platform)
+    soc = WishboneBridgeTestSoC(platform)
     builder = Builder(soc, output_dir="build_arty", csr_csv="test/csr.csv")
     vns = builder.build()
     soc.do_exit(vns)
