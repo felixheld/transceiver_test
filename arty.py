@@ -234,7 +234,10 @@ class WishboneBridgeTestSoC(BaseSoC):
         self.submodules += slave_core, slave_etherbone
         self.add_wb_slave(mem_decoder(self.mem_map["wbslave"]), slave_etherbone.wishbone.bus)
         self.add_memory_region("wbslave", self.mem_map["wbslave"] | self.shadow_base, 0x1000)
-
+        self.comb += [
+            slave_port.source.connect(slave_etherbone.sink),
+            slave_etherbone.source.connect(slave_port.sink)
+        ]
 
         # wishbone master
         master_core = packet.Core(self.clk_freq)
@@ -242,11 +245,15 @@ class WishboneBridgeTestSoC(BaseSoC):
         master_etherbone = etherbone.Etherbone(mode="master")
         master_sram = SRAM(1024, bus=master_etherbone.wishbone.bus)
         self.submodules += master_core, master_etherbone, master_sram
-
-        # connect etherbone directly
         self.comb += [
-            slave_port.source.connect(master_port.sink),
-            master_port.source.connect(slave_port.sink)
+            master_port.source.connect(master_etherbone.sink),
+            master_etherbone.source.connect(master_port.sink)
+        ]
+
+        # connect core directly
+        self.comb += [
+            master_core.source.connect(slave_core.sink),
+            slave_core.source.connect(master_core.sink)
         ]
 
          # analyzer
