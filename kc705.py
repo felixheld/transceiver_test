@@ -60,7 +60,7 @@ class GTXTestSoC(SoCCore):
             polarity = 0
         else:
             raise ValueError
-        gtx = GTX(cpll, tx_pads, rx_pads, clk_freq,
+        gtx = GTX(cpll, tx_pads, rx_pads, self.clk_freq,
             clock_aligner=True, internal_loopback=False,
             tx_polarity=polarity, rx_polarity=polarity)
         self.submodules += gtx
