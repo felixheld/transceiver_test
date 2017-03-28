@@ -12,6 +12,8 @@ from litex.soc.cores.uart.bridge import UARTWishboneBridge
 from transceiver.serdes_7series import SERDESPLL, SERDES
 
 serdes_io = [
+	# Note: We need to use TMDS (LVDS not supported on 3.3V PMODS)
+	# which requires an external 50 ohms pull-up on each diff pin.
     ("serdes_clk", 0, # JC1
         Subsignal("p", Pins("U12")),
         Subsignal("n", Pins("V12")),
@@ -112,7 +114,7 @@ class SERDESTestSoC(BaseSoC):
         tx_pads = platform.request("serdes_tx")
         rx_pads = platform.request("serdes_rx")
         serdes = SERDES(pll, clock_pads, tx_pads, rx_pads, mode="master")
-        #self.comb += serdes.produce_square_wave.eq(1)
+        self.comb += serdes.produce_square_wave.eq(platform.request("user_sw", 0))
         self.submodules += serdes
 
         self.crg.cd_sys.clk.attr.add("keep")
