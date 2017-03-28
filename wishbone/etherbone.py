@@ -468,10 +468,21 @@ class EtherboneWishboneMaster(Module):
         )
 
 
+class EtherboneWishboneSlave(Module):
+    def __init__(self):
+        self.bus = bus = wishbone.Interface()
+        self.sink = sink = stream.Endpoint(eth_etherbone_mmap_description(32))
+        self.source = source = stream.Endpoint(eth_etherbone_mmap_description(32))
+
+        # # #
+
+        # TODO
+
+
 # etherbone
 
 class Etherbone(Module):
-    def __init__(self):
+    def __init__(self, mode="master"):
         self.sink = stream.Endpoint(user_description(32))
         self.source = stream.Endpoint(user_description(32))
 
@@ -479,11 +490,16 @@ class Etherbone(Module):
 
         self.submodules.packet = EtherbonePacket(self.source, self.sink)
         self.submodules.record = EtherboneRecord()
-        self.submodules.master = EtherboneWishboneMaster()
+        if mode == "master":
+            self.submodules.wishbone = EtherboneWishboneMaster()
+        elif mode == "slave":
+            self.submodules.wishbone = EtherboneWishboneSlave()
+        else:
+            raise ValueError
 
         self.comb += [
             self.packet.source.connect(self.record.sink),
             self.record.source.connect(self.packet.sink),
-            self.record.receiver.source.connect(self.master.sink),
-            self.master.source.connect(self.record.sender.sink)
+            self.record.receiver.source.connect(self.wishbone.sink),
+            self.wishbone.source.connect(self.record.sender.sink)
         ]

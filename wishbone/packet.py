@@ -5,13 +5,12 @@ from litex.gen.genlib.misc import WaitTimer
 from litex.soc.interconnect import stream
 from litex.soc.interconnect.stream import EndpointDescription
 from litex.soc.interconnect.stream_packet import *
-from litex.soc.interconnect.wishbonebridge import WishboneStreamingBridge
 
 
 packet_header_length = 12
 packet_header_fields = {
     "preamble": HeaderField(0,  0, 32),
-    "padding":  HeaderField(4,  0, 32),
+    "dst":      HeaderField(4,  0, 32),
     "length":   HeaderField(8,  0, 32)
 }
 packet_header = Header(packet_header_fields,
@@ -25,9 +24,30 @@ def phy_description(dw):
 
 
 def user_description(dw):
-    param_layout = [("length", 32)]
+    param_layout = [
+        ("dst",    8),
+        ("length", 32)
+    ]
     payload_layout = [("data", dw)]
     return EndpointDescription(payload_layout, param_layout)
+
+
+class MasterPort:
+    def __init__(self, dw):
+        self.source = stream.Endpoint(user_description(dw))
+        self.sink = stream.Endpoint(user_description(dw))
+
+
+class SlavePort:
+    def __init__(self, dw, tag):
+        self.sink = stream.Endpoint(user_description(dw))
+        self.source = stream.Endpoint(user_description(dw))
+        self.tag = tag
+
+
+class UserPort(SlavePort):
+    def __init__(self, dw, tag):
+        SlavePort.__init__(self, dw, tag)
 
 
 class Packetizer(Module):
@@ -39,14 +59,15 @@ class Packetizer(Module):
 
         # Packet description
         #   - preamble : 4 bytes
-        #   - unused   : 4 bytes
+        #   - unused   : 3 bytes
+        #   - dst      : 1 byte
         #   - length   : 4 bytes
         #   - payload
         header = [
             # preamble
             0x5aa55aa5,
-            # unused
-            Signal(32),
+            # dst
+            sink.dst,
             # length
             sink.length
         ]
@@ -96,14 +117,15 @@ class Depacketizer(Module):
 
         # Packet description
         #   - preamble : 4 bytes
-        #   - unused   : 4 bytes
+        #   - unused   : 3 bytes
+        #   - dst      : 1 byte
         #   - length   : 4 bytes
         #   - payload
         preamble = Signal(32)
 
         header = [
-            # unused
-            Signal(32),
+            # dst
+            source.dst,
             # length
             source.length
         ]
@@ -165,3 +187,59 @@ class Depacketizer(Module):
             )
         self.comb += last.eq(cnt == source.length[2:] - 1)
 
+
+class Crossbar(Module):
+    def __init__(self):
+        self.users = OrderedDict()
+        self.master = MasterPort(32)
+        self.dispatch_param = "dst"
+
+    def get_port(self, dst):
+        port = UserPort(32, dst)
+        if dst in self.users.keys():
+            raise ValueError("Destination {0:#x} already assigned".format(dst))
+        self.users[dst] = port
+        return port
+
+    def do_finalize(self):
+        # TX arbitrate
+        sinks = [port.sink for port in self.users.values()]
+        self.submodules.arbiter = Arbiter(sinks, self.master.source)
+
+        # RX dispatch
+        sources = [port.source for port in self.users.values()]
+        self.submodules.dispatcher = Dispatcher(self.master.sink,
+                                                sources,
+                                                one_hot=True)
+        cases = {}
+        cases["default"] = self.dispatcher.sel.eq(0)
+        for i, (k, v) in enumerate(self.users.items()):
+            cases[k] = self.dispatcher.sel.eq(2**i)
+        self.comb += \
+            Case(getattr(self.master.sink, self.dispatch_param), cases)
+
+
+class Core(Module):
+    def __init__(self, clk_freq):
+        self.sink = sink = stream.Endpoint(phy_description(32))
+        self.source = source = stream.Endpoint(phy_description(32))
+
+        # # #
+
+        rx_pipeline = [sink]
+        tx_pipeline = [source]
+
+        # depacketizer / packetizer
+        self.submodules.depacketizer = Depacketizer(clk_freq)
+        self.submodules.packetizer = Packetizer()
+        rx_pipeline += [self.depacketizer]
+        tx_pipeline += [self.packetizer]
+
+        # crossbar
+        self.submodules.crossbar = Crossbar()
+        rx_pipeline += [self.crossbar.master]
+        tx_pipeline += [self.crossbar.master]
+
+        # graph
+        self.submodules.rx_pipeline = stream.Pipeline(*rx_pipeline)
+        self.submodules.tx_pipeline = stream.Pipeline(*reversed(tx_pipeline))

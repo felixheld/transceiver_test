@@ -12,8 +12,8 @@ from litex.soc.cores.uart.bridge import UARTWishboneBridge
 
 from transceiver.serdes_7series import SERDESPLL, SERDES
 
-from wishbone.packet import Packetizer, Depacketizer
-from wishbone.etherbone import Etherbone
+from wishbone import packet
+from wishbone import etherbone
 
 from litescope import LiteScopeAnalyzer
 
@@ -217,14 +217,24 @@ class WishboneBridgeTestSoC(BaseSoC):
     def __init__(self, platform):
         BaseSoC.__init__(self, platform)
 
-        packetizer = Packetizer()
-        depacketizer = Depacketizer(self.clk_freq)
-        etherbone = Etherbone()
-        self.submodules += packetizer, depacketizer, etherbone
+        # wishbone slave
+        # TODO: add wishbone slave stimulation
+        slave_core = packet.Core(self.clk_freq)
+        slave_port = slave_core.crossbar.get_port(0x01)
+        slave_etherbone = etherbone.Etherbone(mode="slave")
+        self.submodules += slave_core, slave_etherbone
+
+        # wishbone master
+        # TODO: connect wishbone master to something
+        master_core = packet.Core(self.clk_freq)
+        master_port = master_core.crossbar.get_port(0x01)
+        master_etherbone = etherbone.Etherbone(mode="master")
+        self.submodules += master_core, master_etherbone
+
+        # connect etherbone directly
         self.comb += [
-            etherbone.source.connect(packetizer.sink),
-            packetizer.source.connect(depacketizer.sink),
-            depacketizer.source.connect(etherbone.sink)
+            slave_port.source.connect(master_port.sink),
+            master_port.source.connect(slave_port.sink)
         ]
 
 
