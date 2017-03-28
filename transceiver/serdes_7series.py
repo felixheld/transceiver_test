@@ -103,6 +103,11 @@ class PhaseDetector(Module):
 class SERDES(Module):
     def __init__(self, pll, clock_pads, tx_pads, rx_pads, mode="master"):
         self.produce_square_wave = Signal()
+        self.rx_bitslip_value = Signal(5, reset=7)
+        self.rx_delay_rst = Signal()
+        self.rx_delay_inc = Signal()
+        self.rx_delay_ce = Signal()
+
         self.submodules.encoder = ClockDomainsRenamer("rtio")(
             Encoder(2, True))
         self.decoders = [ClockDomainsRenamer("rtio")(
@@ -231,13 +236,17 @@ class SERDES(Module):
                 p_CINVCTRL_SEL="FALSE", p_HIGH_PERFORMANCE_MODE="TRUE", p_REFCLK_FREQUENCY=200.0,
                 p_PIPE_SEL="FALSE", p_IDELAY_TYPE="VARIABLE", p_IDELAY_VALUE=serdes_m_idelay_value,
 
-                i_C=ClockSignal("serdes_div"),
-                i_LD=ResetSignal("serdes_div"),
-                # For now desactivate for simulation
+                # automatic delay config
+                #i_C=ClockSignal("serdes_div"),
+                #i_LD=ResetSignal("serdes_div"),
                 #i_CE=self.phase_detector.ce,
                 #i_LDPIPEEN=0, i_INC=self.phase_detector.inc,
-                i_CE=0,
-                i_LDPIPEEN=0, i_INC=0,
+
+                # manual delay config
+                i_C=ClockSignal(),
+                i_LD=self.rx_delay_rst,
+                i_CE=self.rx_delay_ce,
+                i_LDPIPEEN=0, i_INC=self.rx_delay_inc,
 
                 i_IDATAIN=serdes_m_i_nodelay, o_DATAOUT=serdes_m_i_delayed
             ),
@@ -269,13 +278,17 @@ class SERDES(Module):
                 p_CINVCTRL_SEL="FALSE", p_HIGH_PERFORMANCE_MODE="TRUE", p_REFCLK_FREQUENCY=200.0,
                 p_PIPE_SEL="FALSE", p_IDELAY_TYPE="VARIABLE", p_IDELAY_VALUE=serdes_s_idelay_value,
 
-                i_C=ClockSignal("serdes_div"),
-                i_LD=ResetSignal("serdes_div"),
-                # For now desactivate for simulation
+                # automatic delay config
+                #i_C=ClockSignal("serdes_div"),
+                #i_LD=ResetSignal("serdes_div"),
                 #i_CE=self.phase_detector.ce,
                 #i_LDPIPEEN=0, i_INC=self.phase_detector.inc,
-                i_CE=0,
-                i_LDPIPEEN=0, i_INC=0,
+
+                # manual delay config
+                i_C=ClockSignal(),
+                i_LD=self.rx_delay_rst,
+                i_CE=self.rx_delay_ce,
+                i_LDPIPEEN=0, i_INC=self.rx_delay_inc,
 
                 i_IDATAIN=~serdes_s_i_nodelay, o_DATAOUT=serdes_s_i_delayed
             ),
@@ -299,7 +312,7 @@ class SERDES(Module):
 
         self.comb += [
             self.rx_gearbox.i.eq(serdes_m_q),
-            self.rx_bitslip.value.eq(7), # FIXME
+            self.rx_bitslip.value.eq(self.rx_bitslip_value),
             self.rx_bitslip.i.eq(self.rx_gearbox.o),
             self.decoders[0].input.eq(self.rx_bitslip.o[:10]),
             self.decoders[1].input.eq(self.rx_bitslip.o[10:])

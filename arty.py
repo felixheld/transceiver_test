@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from litex.gen import *
+from litex.soc.interconnect.csr import *
 from litex.gen.genlib.resetsync import AsyncResetSynchronizer
 from litex.build.generic_platform import *
 from litex.boards.platforms import arty
@@ -10,6 +11,9 @@ from litex.soc.integration.builder import *
 from litex.soc.cores.uart.bridge import UARTWishboneBridge
 
 from transceiver.serdes_7series import SERDESPLL, SERDES
+
+from litescope import LiteScopeAnalyzer
+
 
 serdes_io = [
 	# Note: We need to use TMDS (LVDS not supported on 3.3V PMODS)
@@ -102,7 +106,26 @@ class BaseSoC(SoCCore):
         self.add_wb_master(self.cpu_or_bridge.wishbone)
 
 
+class SERDESControl(Module, AutoCSR):
+	def __init__(self):
+		self._rx_bitslip_value = CSRStorage(5)
+		self._rx_delay_rst = CSR()
+		self._rx_delay_inc = CSRStorage()
+		self._rx_delay_ce = CSR()
+
+		# # #
+
+		self.rx_bitslip_value = self._rx_bitslip_value.storage
+		self.rx_delay_rst = self._rx_delay_rst.r & self._rx_delay_rst.re
+		self.rx_delay_inc = self._rx_delay_inc.storage
+		self.rx_delay_ce = self._rx_delay_ce.r & self._rx_delay_ce.re
+
 class SERDESTestSoC(BaseSoC):
+    csr_map = {
+        "serdes_control": 20,
+        "analyzer": 21
+    }
+    csr_map.update(BaseSoC.csr_map)
     def __init__(self, platform):
         BaseSoC.__init__(self, platform)
 
@@ -116,6 +139,14 @@ class SERDESTestSoC(BaseSoC):
         serdes = SERDES(pll, clock_pads, tx_pads, rx_pads, mode="master")
         self.comb += serdes.produce_square_wave.eq(platform.request("user_sw", 0))
         self.submodules += serdes
+
+        self.submodules.serdes_control =  serdes_control = SERDESControl()
+        self.comb += [
+        	serdes.rx_bitslip_value.eq(serdes_control.rx_bitslip_value),
+        	serdes.rx_delay_rst.eq(serdes_control.rx_delay_rst),
+        	serdes.rx_delay_inc.eq(serdes_control.rx_delay_inc),
+        	serdes.rx_delay_ce.eq(serdes_control.rx_delay_ce)
+        ]
 
         self.crg.cd_sys.clk.attr.add("keep")
         serdes.cd_rtio.clk.attr.add("keep")
@@ -154,13 +185,34 @@ class SERDESTestSoC(BaseSoC):
         self.sync.serdes += serdes_counter.eq(serdes_counter + 1)
         self.comb += platform.request("user_led", 3).eq(serdes_counter[26])
 
+        analyzer_signals = [
+        	serdes.encoder.k[0],
+        	serdes.encoder.d[0],
+        	serdes.encoder.output[0],
+        	serdes.encoder.k[1],
+        	serdes.encoder.d[1],
+        	serdes.encoder.output[1],
+
+            serdes.decoders[0].input,
+            serdes.decoders[0].d,
+            serdes.decoders[0].k,
+            serdes.decoders[1].input,
+            serdes.decoders[1].d,
+            serdes.decoders[1].k,
+        ]
+        self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 512, cd="rtio")
+
+    def do_exit(self, vns):
+        self.analyzer.export_csv(vns, "test/analyzer.csv")
+
 
 def main():
     platform = arty.Platform()
     platform.add_extension(serdes_io)
     soc = SERDESTestSoC(platform)
     builder = Builder(soc, output_dir="build_arty", csr_csv="test/csr.csv")
-    builder.build()
+    vns = builder.build()
+    soc.do_exit(vns)
 
 
 if __name__ == "__main__":
