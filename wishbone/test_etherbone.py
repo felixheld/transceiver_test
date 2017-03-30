@@ -7,6 +7,7 @@ from wishbone import packet
 from wishbone import etherbone
 
 from litex.soc.interconnect.wishbone import SRAM
+from litex.soc.interconnect.stream import Converter
 
 
 class DUT(Module):
@@ -32,10 +33,21 @@ class DUT(Module):
             master_etherbone.source.connect(master_port.sink)
         ]
 
-        # connect core directly
+        # connect core directly with converters in the loop
+        s2m_downconverter = Converter(32, 16)
+        s2m_upconverter = Converter(16, 32)
+        self.submodules += s2m_downconverter, s2m_upconverter
+        m2s_downconverter = Converter(32, 16)
+        m2s_upconverter = Converter(16, 32)
+        self.submodules += m2s_upconverter, m2s_downconverter
         self.comb += [
-            master_core.source.connect(slave_core.sink),
-            slave_core.source.connect(master_core.sink)
+        	slave_core.source.connect(s2m_downconverter.sink),
+        	s2m_downconverter.source.connect(s2m_upconverter.sink),
+        	s2m_upconverter.source.connect(master_core.sink),
+
+        	master_core.source.connect(m2s_downconverter.sink),
+        	m2s_downconverter.source.connect(m2s_upconverter.sink),
+        	m2s_upconverter.source.connect(slave_core.sink)
         ]
 
         # expose wishbone slave
