@@ -141,17 +141,17 @@ packet_header = Header(packet_header_fields,
 
 
 def phy_description(dw):
-    payload_layout = [("data", dw)]
-    return EndpointDescription(payload_layout)
+    layout = [("data", dw)]
+    return EndpointDescription(layout)
 
 
 def user_description(dw):
-    param_layout = [
+    layout = [
+        ("data", dw),
         ("dst",    8),
         ("length", 32)
     ]
-    payload_layout = [("data", dw)]
-    return EndpointDescription(payload_layout, param_layout)
+    return EndpointDescription(layout)
 
 
 class MasterPort:

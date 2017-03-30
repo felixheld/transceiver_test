@@ -230,38 +230,35 @@ def _remove_from_layout(layout, *args):
     return r
 
 def eth_etherbone_packet_description(dw):
-    param_layout = etherbone_packet_header.get_layout()
-    payload_layout = [("data", dw)]
-    return stream.EndpointDescription(payload_layout, param_layout)
+    layout = etherbone_packet_header.get_layout()
+    layout += [("data", dw)]
+    return stream.EndpointDescription(layout)
 
 def eth_etherbone_packet_user_description(dw):
-    param_layout = etherbone_packet_header.get_layout()
-    param_layout = _remove_from_layout(param_layout,
-                                       "magic",
-                                       "portsize",
-                                       "addrsize",
-                                       "version")
-    param_layout += user_description(dw).param_layout
-    payload_layout = [("data", dw)]
-    return stream.EndpointDescription(payload_layout, param_layout)
+    layout = etherbone_packet_header.get_layout()
+    layout = _remove_from_layout(layout,
+                                 "magic",
+                                 "portsize",
+                                 "addrsize",
+                                 "version")
+    layout += user_description(dw).payload_layout
+    return stream.EndpointDescription(layout)
 
 def eth_etherbone_record_description(dw):
-    param_layout = etherbone_record_header.get_layout()
-    payload_layout = [("data", dw)]
-    return stream.EndpointDescription(payload_layout, param_layout)
+    layout = etherbone_record_header.get_layout()
+    layout += [("data", dw)]
+    return stream.EndpointDescription(layout)
 
 def eth_etherbone_mmap_description(dw):
-    param_layout = [
+    layout = [
         ("we",            1),
         ("count",         8),
         ("base_addr",    32),
-        ("be",        dw//8)
-    ]
-    payload_layout = [
+        ("be",        dw//8),
         ("addr", 32),
         ("data", dw)
     ]
-    return stream.EndpointDescription(payload_layout, param_layout)
+    return stream.EndpointDescription(layout)
 
 
 # etherbone packet
@@ -415,7 +412,6 @@ class EtherboneRecordReceiver(Module):
 
         # # #
 
-        # TODO: optimize ressources (no need to store parameters as datas)
         fifo = stream.SyncFIFO(eth_etherbone_record_description(32), buffer_depth,
                                buffered=True)
         self.submodules += fifo
@@ -500,7 +496,6 @@ class EtherboneRecordSender(Module):
 
         # # #
 
-        # TODO: optimize ressources (no need to store parameters as datas)
         pbuffer = stream.SyncFIFO(eth_etherbone_mmap_description(32), buffer_depth)
         self.submodules += pbuffer
         self.comb += sink.connect(pbuffer.sink)
