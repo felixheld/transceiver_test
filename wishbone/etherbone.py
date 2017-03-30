@@ -1,10 +1,184 @@
-from liteeth.common import *
+from litex.gen import *
 
+from litex.soc.interconnect import stream
 from litex.soc.interconnect import wishbone
-from wishbone.packet import user_description
 
-# TODO: specific to LiteX, import and cleanup
-from litex.soc.interconnect.stream_packet import Packetizer, Depacketizer
+from wishbone.packet import HeaderField, Header, reverse_bytes, user_description
+
+
+# TODO: specific to LiteX, cleanup if needed
+class Packetizer(Module):
+    def __init__(self, sink_description, source_description, header):
+        self.sink = sink = stream.Endpoint(sink_description)
+        self.source = source = stream.Endpoint(source_description)
+        self.header = Signal(header.length*8)
+
+        # # #
+
+        dw = len(self.sink.data)
+
+        header_reg = Signal(header.length*8)
+        header_words = (header.length*8)//dw
+        load = Signal()
+        shift = Signal()
+        counter = Signal(max=max(header_words, 2))
+        counter_reset = Signal()
+        counter_ce = Signal()
+        self.sync += \
+            If(counter_reset,
+                counter.eq(0)
+            ).Elif(counter_ce,
+                counter.eq(counter + 1)
+            )
+
+        self.comb += header.encode(sink, self.header)
+        if header_words == 1:
+            self.sync += [
+                If(load,
+                    header_reg.eq(self.header)
+                )
+            ]
+        else:
+            self.sync += [
+                If(load,
+                    header_reg.eq(self.header)
+                ).Elif(shift,
+                    header_reg.eq(Cat(header_reg[dw:], Signal(dw)))
+                )
+            ]
+
+        fsm = FSM(reset_state="IDLE")
+        self.submodules += fsm
+
+        if header_words == 1:
+            idle_next_state = "COPY"
+        else:
+            idle_next_state = "SEND_HEADER"
+
+        fsm.act("IDLE",
+            sink.ready.eq(1),
+            counter_reset.eq(1),
+            If(sink.valid,
+                sink.ready.eq(0),
+                source.valid.eq(1),
+                source.last.eq(0),
+                source.data.eq(self.header[:dw]),
+                If(source.valid & source.ready,
+                    load.eq(1),
+                    NextState(idle_next_state)
+                )
+            )
+        )
+        if header_words != 1:
+            fsm.act("SEND_HEADER",
+                source.valid.eq(1),
+                source.last.eq(0),
+                source.data.eq(header_reg[dw:2*dw]),
+                If(source.valid & source.ready,
+                    shift.eq(1),
+                    counter_ce.eq(1),
+                    If(counter == header_words-2,
+                        NextState("COPY")
+                    )
+                )
+            )
+        if hasattr(sink, "error"):
+            self.comb += source.error.eq(sink.error)
+        fsm.act("COPY",
+            source.valid.eq(sink.valid),
+            source.last.eq(sink.last),
+            source.data.eq(sink.data),
+            If(source.valid & source.ready,
+                sink.ready.eq(1),
+                If(source.last,
+                    NextState("IDLE")
+                )
+            )
+        )
+
+
+class Depacketizer(Module):
+    def __init__(self, sink_description, source_description, header):
+        self.sink = sink = stream.Endpoint(sink_description)
+        self.source = source = stream.Endpoint(source_description)
+        self.header = Signal(header.length*8)
+
+        # # #
+
+        dw = len(sink.data)
+
+        header_words = (header.length*8)//dw
+
+        shift = Signal()
+        counter = Signal(max=max(header_words, 2))
+        counter_reset = Signal()
+        counter_ce = Signal()
+        self.sync += \
+            If(counter_reset,
+                counter.eq(0)
+            ).Elif(counter_ce,
+                counter.eq(counter + 1)
+            )
+
+        if header_words == 1:
+            self.sync += \
+                If(shift,
+                    self.header.eq(sink.data)
+                )
+        else:
+            self.sync += \
+                If(shift,
+                    self.header.eq(Cat(self.header[dw:], sink.data))
+                )
+
+        fsm = FSM(reset_state="IDLE")
+        self.submodules += fsm
+
+        if header_words == 1:
+            idle_next_state = "COPY"
+        else:
+            idle_next_state = "RECEIVE_HEADER"
+
+        fsm.act("IDLE",
+            sink.ready.eq(1),
+            counter_reset.eq(1),
+            If(sink.valid,
+                shift.eq(1),
+                NextState(idle_next_state)
+            )
+        )
+        if header_words != 1:
+            fsm.act("RECEIVE_HEADER",
+                sink.ready.eq(1),
+                If(sink.valid,
+                    counter_ce.eq(1),
+                    shift.eq(1),
+                    If(counter == header_words-2,
+                        NextState("COPY")
+                    )
+                )
+            )
+        no_payload = Signal()
+        self.sync += \
+            If(fsm.before_entering("COPY"),
+                no_payload.eq(sink.last)
+            )
+
+        if hasattr(sink, "error"):
+            self.comb += source.error.eq(sink.error)
+        self.comb += [
+            source.last.eq(sink.last | no_payload),
+            source.data.eq(sink.data),
+            header.decode(self.header, source)
+        ]
+        fsm.act("COPY",
+            sink.ready.eq(source.ready),
+            source.valid.eq(sink.valid | no_payload),
+            If(source.valid & source.ready & source.last,
+                NextState("IDLE")
+            )
+        )
+# TODO: specific to LiteX, cleanup if needed
 
 
 etherbone_magic = 0x4e6f
@@ -58,7 +232,7 @@ def _remove_from_layout(layout, *args):
 def eth_etherbone_packet_description(dw):
     param_layout = etherbone_packet_header.get_layout()
     payload_layout = [("data", dw)]
-    return EndpointDescription(payload_layout, param_layout)
+    return stream.EndpointDescription(payload_layout, param_layout)
 
 def eth_etherbone_packet_user_description(dw):
     param_layout = etherbone_packet_header.get_layout()
@@ -69,12 +243,12 @@ def eth_etherbone_packet_user_description(dw):
                                        "version")
     param_layout += user_description(dw).param_layout
     payload_layout = [("data", dw)]
-    return EndpointDescription(payload_layout, param_layout)
+    return stream.EndpointDescription(payload_layout, param_layout)
 
 def eth_etherbone_record_description(dw):
     param_layout = etherbone_record_header.get_layout()
     payload_layout = [("data", dw)]
-    return EndpointDescription(payload_layout, param_layout)
+    return stream.EndpointDescription(payload_layout, param_layout)
 
 def eth_etherbone_mmap_description(dw):
     param_layout = [
@@ -87,7 +261,7 @@ def eth_etherbone_mmap_description(dw):
         ("addr", 32),
         ("data", dw)
     ]
-    return EndpointDescription(payload_layout, param_layout)
+    return stream.EndpointDescription(payload_layout, param_layout)
 
 
 # etherbone packet

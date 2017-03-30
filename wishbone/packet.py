@@ -6,9 +6,128 @@ from litex.gen.genlib.misc import WaitTimer
 from litex.soc.interconnect import stream
 from litex.soc.interconnect.stream import EndpointDescription
 
-# TODO: specific to LiteX, import and cleanup
-from litex.soc.interconnect.stream_packet import HeaderField, Header, Arbiter, Dispatcher
 
+# TODO: specific to LiteX, cleanup if needed
+def reverse_bytes(signal):
+    n = (len(signal)+7)//8
+    r = []
+    for i in reversed(range(n)):
+        r.append(signal[i*8:min((i+1)*8, len(signal))])
+    return Cat(iter(r))
+
+
+class HeaderField:
+    def __init__(self, byte, offset, width):
+        self.byte = byte
+        self.offset = offset
+        self.width = width
+
+
+class Header:
+    def __init__(self, fields, length, swap_field_bytes=True):
+        self.fields = fields
+        self.length = length
+        self.swap_field_bytes = swap_field_bytes
+
+    def get_layout(self):
+        layout = []
+        for k, v in sorted(self.fields.items()):
+            layout.append((k, v.width))
+        return layout
+
+    def get_field(self, obj, name, width):
+        if "_lsb" in name:
+            field = getattr(obj, name.replace("_lsb", ""))[:width]
+        elif "_msb" in name:
+            field = getattr(obj, name.replace("_msb", ""))[width:2*width]
+        else:
+            field = getattr(obj, name)
+        if len(field) != width:
+            raise ValueError("Width mismatch on " + name + " field")
+        return field
+
+    def encode(self, obj, signal):
+        r = []
+        for k, v in sorted(self.fields.items()):
+            start = v.byte*8 + v.offset
+            end = start + v.width
+            field = self.get_field(obj, k, v.width)
+            if self.swap_field_bytes:
+                field = reverse_bytes(field)
+            r.append(signal[start:end].eq(field))
+        return r
+
+    def decode(self, signal, obj):
+        r = []
+        for k, v in sorted(self.fields.items()):
+            start = v.byte*8 + v.offset
+            end = start + v.width
+            field = self.get_field(obj, k, v.width)
+            if self.swap_field_bytes:
+                r.append(field.eq(reverse_bytes(signal[start:end])))
+            else:
+                r.append(field.eq(signal[start:end]))
+        return r
+
+class Arbiter(Module):
+    def __init__(self, masters, slave):
+        if len(masters) == 0:
+            pass
+        elif len(masters) == 1:
+            self.grant = Signal()
+            self.comb += masters.pop().connect(slave)
+        else:
+            self.submodules.rr = RoundRobin(len(masters))
+            self.grant = self.rr.grant
+            cases = {}
+            for i, master in enumerate(masters):
+                status = Status(master)
+                self.submodules += status
+                self.comb += self.rr.request[i].eq(status.ongoing)
+                cases[i] = [master.connect(slave)]
+            self.comb += Case(self.grant, cases)
+
+
+class Dispatcher(Module):
+    def __init__(self, master, slaves, one_hot=False):
+        if len(slaves) == 0:
+            self.sel = Signal()
+        elif len(slaves) == 1:
+            self.comb += master.connect(slaves.pop())
+            self.sel = Signal()
+        else:
+            if one_hot:
+                self.sel = Signal(len(slaves))
+            else:
+                self.sel = Signal(max=len(slaves))
+
+            # # #
+
+            status = Status(master)
+            self.submodules += status
+
+            sel = Signal.like(self.sel)
+            sel_ongoing = Signal.like(self.sel)
+            self.sync += \
+                If(status.first,
+                    sel_ongoing.eq(self.sel)
+                )
+            self.comb += \
+                If(status.first,
+                    sel.eq(self.sel)
+                ).Else(
+                    sel.eq(sel_ongoing)
+                )
+            cases = {}
+            for i, slave in enumerate(slaves):
+                if one_hot:
+                    idx = 2**i
+                else:
+                    idx = i
+                cases[idx] = [master.connect(slave)]
+            cases["default"] = [master.ready.eq(1)]
+            self.comb += Case(sel, cases)
+# TODO: specific to LiteX, cleanup if needed
 
 packet_header_length = 12
 packet_header_fields = {
