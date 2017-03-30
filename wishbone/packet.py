@@ -7,7 +7,7 @@ from litex.soc.interconnect import stream
 from litex.soc.interconnect.stream import EndpointDescription
 
 
-# TODO: specific to LiteX, cleanup if needed
+# TODO: imported from LiteX, cleanup if needed
 def reverse_bytes(signal):
     n = (len(signal)+7)//8
     r = []
@@ -127,7 +127,7 @@ class Dispatcher(Module):
                 cases[idx] = [master.connect(slave)]
             cases["default"] = [master.ready.eq(1)]
             self.comb += Case(sel, cases)
-# TODO: specific to LiteX, cleanup if needed
+# TODO: imported from LiteX, cleanup if needed
 
 packet_header_length = 12
 packet_header_fields = {

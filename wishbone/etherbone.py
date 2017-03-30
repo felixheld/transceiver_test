@@ -6,7 +6,7 @@ from litex.soc.interconnect import wishbone
 from wishbone.packet import HeaderField, Header, reverse_bytes, user_description
 
 
-# TODO: specific to LiteX, cleanup if needed
+# TODO: imported from LiteX, cleanup if needed
 class Packetizer(Module):
     def __init__(self, sink_description, source_description, header):
         self.sink = sink = stream.Endpoint(sink_description)
@@ -82,8 +82,6 @@ class Packetizer(Module):
                     )
                 )
             )
-        if hasattr(sink, "error"):
-            self.comb += source.error.eq(sink.error)
         fsm.act("COPY",
             source.valid.eq(sink.valid),
             source.last.eq(sink.last),
@@ -164,8 +162,6 @@ class Depacketizer(Module):
                 no_payload.eq(sink.last)
             )
 
-        if hasattr(sink, "error"):
-            self.comb += source.error.eq(sink.error)
         self.comb += [
             source.last.eq(sink.last | no_payload),
             source.data.eq(sink.data),
@@ -178,7 +174,7 @@ class Depacketizer(Module):
                 NextState("IDLE")
             )
         )
-# TODO: specific to LiteX, cleanup if needed
+# TODO: imported from LiteX, cleanup if needed
 
 
 etherbone_magic = 0x4e6f
@@ -251,10 +247,10 @@ def eth_etherbone_record_description(dw):
 
 def eth_etherbone_mmap_description(dw):
     layout = [
-        ("we",            1),
-        ("count",         8),
-        ("base_addr",    32),
-        ("be",        dw//8),
+        ("we", 1),
+        ("count", 8),
+        ("base_addr", 32),
+        ("be", dw//8),
         ("addr", 32),
         ("data", dw)
     ]
@@ -641,7 +637,6 @@ class EtherboneWishboneMaster(Module):
 
 
 class EtherboneWishboneSlave(Module):
-    # TODO: add support for buffered writes
     def __init__(self):
         self.bus = bus = wishbone.Interface()
         self.sink = sink = stream.Endpoint(eth_etherbone_mmap_description(32))
