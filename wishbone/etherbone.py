@@ -431,7 +431,6 @@ class EtherboneRecordReceiver(Module):
         fsm.act("IDLE",
             fifo.source.ready.eq(1),
             counter_reset.eq(1),
-            If(fifo.source.rcount, fifo.source.ready.eq(0)), # FIXME
             If(fifo.source.valid,
                 base_addr_update.eq(1),
                 If(fifo.source.wcount,
@@ -558,8 +557,9 @@ class EtherboneRecord(Module):
         self.comb += [
             sender.source.connect(packetizer.sink),
             packetizer.source.connect(source),
-            # XXX improve this
-            source.length.eq(sender.source.wcount*4 + 4 + etherbone_record_header.length)
+            source.length.eq(etherbone_record_header.length +
+            	             (sender.source.wcount != 0)*4 + sender.source.wcount*4 +
+            	             (sender.source.rcount != 0)*4 + sender.source.rcount*4)
         ]
         if endianness is "big":
             self.comb += packetizer.sink.data.eq(reverse_bytes(sender.source.data))
@@ -659,7 +659,6 @@ class EtherboneWishboneSlave(Module):
             source.valid.eq(1),
             source.last.eq(1),
             source.base_addr[2:].eq(bus.adr),
-            source.addr.eq(0),
             source.count.eq(1),
             source.be.eq(bus.sel),
             source.we.eq(1),
@@ -672,11 +671,11 @@ class EtherboneWishboneSlave(Module):
         fsm.act("SEND_READ",
             source.valid.eq(1),
             source.last.eq(1),
-            source.base_addr[2:].eq(bus.adr),
-            source.addr.eq(0),
+            source.base_addr.eq(0),
             source.count.eq(1),
             source.be.eq(bus.sel),
             source.we.eq(0),
+            source.data[2:].eq(bus.adr),
             If(source.valid & source.ready,
                 NextState("WAIT_READ")
             )
