@@ -1,9 +1,10 @@
 from liteeth.common import *
 
 from litex.soc.interconnect import wishbone
-from litex.soc.interconnect.stream_packet import *
-
 from wishbone.packet import user_description
+
+# TODO: specific to LiteX, import and cleanup
+from litex.soc.interconnect.stream_packet import Packetizer, Depacketizer
 
 
 etherbone_magic = 0x4e6f

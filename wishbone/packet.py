@@ -1,10 +1,13 @@
 from collections import OrderedDict
 
+from litex.gen import *
 from litex.gen.genlib.misc import WaitTimer
 
 from litex.soc.interconnect import stream
 from litex.soc.interconnect.stream import EndpointDescription
-from litex.soc.interconnect.stream_packet import *
+
+# TODO: specific to LiteX, import and cleanup
+from litex.soc.interconnect.stream_packet import HeaderField, Header, Arbiter, Dispatcher
 
 
 packet_header_length = 12
