@@ -1,9 +1,9 @@
 from litex.gen import *
 from litex.gen.genlib.resetsync import AsyncResetSynchronizer
+from litex.gen.genlib.cdc import Gearbox
+from litex.gen.genlib.misc import BitSlip
 
 from transceiver.line_coding import Encoder, Decoder
-from transceiver.gearbox import Gearbox
-from transceiver.bitslip import BitSlip
 
 
 class SERDESPLL(Module):
