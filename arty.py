@@ -8,7 +8,7 @@ from litex.boards.platforms import arty
 
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
-from litex.soc.cores.uart.bridge import UARTWishboneBridge
+from litex.soc.cores.uart import UARTWishboneBridge
 
 from transceiver.serdes_7series import SERDESPLL, SERDES
 
