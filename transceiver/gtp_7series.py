@@ -1,7 +1,7 @@
 from litex.gen import *
 from litex.gen.genlib.resetsync import AsyncResetSynchronizer
+from litex.soc.cores.code_8b10b import Encoder, Decoder
 
-from transceiver.line_coding import Encoder, Decoder
 from transceiver.gtp_7series_init import GTPInit
 from transceiver.clock_aligner import BruteforceClockAligner
 

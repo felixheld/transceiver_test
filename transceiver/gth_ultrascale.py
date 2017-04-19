@@ -2,8 +2,8 @@ from litex.gen import *
 from litex.gen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.soc.interconnect.csr import *
+from litex.soc.cores.code_8b10b import Encoder, Decoder
 
-from transceiver.line_coding import Encoder, Decoder
 from transceiver.gth_ultrascale_init import GTHInit
 from transceiver.clock_aligner import BruteforceClockAligner
 

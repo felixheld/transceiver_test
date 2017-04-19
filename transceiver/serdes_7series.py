@@ -3,7 +3,7 @@ from litex.gen.genlib.resetsync import AsyncResetSynchronizer
 from litex.gen.genlib.cdc import Gearbox
 from litex.gen.genlib.misc import BitSlip
 
-from transceiver.line_coding import Encoder, Decoder
+from litex.soc.cores.code_8b10b import Encoder, Decoder
 
 
 class SERDESPLL(Module):
