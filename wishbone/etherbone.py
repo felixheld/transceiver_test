@@ -1,9 +1,25 @@
+"""
+Etherbone
+
+CERN's Etherbone protocol is initially used to run a Wishbone bus over an
+ethernet network. This re-implementation is meant to be run over transceivers
+and introduces some limitations:
+- no probing (pf/pr)
+- no address spaces (rca/bca/wca/wff)
+- 32bits data and address
+- 1 record per frame
+
+TODO:
+- report error status?
+- use cyc field 
+"""
+
 from litex.gen import *
 
 from litex.soc.interconnect import stream
 from litex.soc.interconnect import wishbone
 
-from wishbone.packet import HeaderField, Header, reverse_bytes, user_description
+from wishbone.packet import *
 
 
 # TODO: imported from LiteX, cleanup if needed
@@ -185,11 +201,11 @@ etherbone_packet_header_fields = {
 
     "version":   HeaderField(2, 4,  4),
     "nr":        HeaderField(2, 2,  1),
-    "pr":        HeaderField(2, 1,  1),
-    "pf":        HeaderField(2, 0,  1),
+    "pr":        HeaderField(2, 1,  1), # unused
+    "pf":        HeaderField(2, 0,  1), # unused
 
-    "addr_size": HeaderField(3, 4,  4),
-    "port_size": HeaderField(3, 0,  4)
+    "addr_size": HeaderField(3, 4,  4), # static
+    "port_size": HeaderField(3, 0,  4)  # static
 }
 etherbone_packet_header = Header(etherbone_packet_header_fields,
                                  etherbone_packet_header_length,
@@ -197,12 +213,12 @@ etherbone_packet_header = Header(etherbone_packet_header_fields,
 
 etherbone_record_header_length = 4
 etherbone_record_header_fields = {
-    "bca":         HeaderField(0, 0, 1),
-    "rca":         HeaderField(0, 1, 1),
-    "rff":         HeaderField(0, 2, 1),
-    "cyc":         HeaderField(0, 4, 1),
-    "wca":         HeaderField(0, 5, 1),
-    "wff":         HeaderField(0, 6, 1),
+    "bca":         HeaderField(0, 0, 1), # unused
+    "rca":         HeaderField(0, 1, 1), # unused
+    "rff":         HeaderField(0, 2, 1), # unused
+    "cyc":         HeaderField(0, 4, 1), # unused
+    "wca":         HeaderField(0, 5, 1), # unused
+    "wff":         HeaderField(0, 6, 1), # unused
 
     "byte_enable": HeaderField(1, 0, 8),
 
@@ -283,8 +299,6 @@ class EtherbonePacketTX(Module):
             packetizer.sink.magic.eq(etherbone_magic),
             packetizer.sink.port_size.eq(32//8),
             packetizer.sink.addr_size.eq(32//8),
-            packetizer.sink.pf.eq(sink.pf),
-            packetizer.sink.pr.eq(sink.pr),
             packetizer.sink.nr.eq(sink.nr),
             packetizer.sink.version.eq(etherbone_version),
 
@@ -348,8 +362,6 @@ class EtherbonePacketRX(Module):
         self.comb += [
             source.last.eq(depacketizer.source.last),
 
-            source.pf.eq(depacketizer.source.pf),
-            source.pr.eq(depacketizer.source.pr),
             source.nr.eq(depacketizer.source.nr),
 
             source.data.eq(depacketizer.source.data),
@@ -534,7 +546,6 @@ class EtherboneRecordSender(Module):
 
 
 class EtherboneRecord(Module):
-    # Limitation: For simplicity we only support 1 record per packet
     def __init__(self, endianness="big"):
         self.sink = sink = stream.Endpoint(eth_etherbone_packet_user_description(32))
         self.source = source = stream.Endpoint(eth_etherbone_packet_user_description(32))
