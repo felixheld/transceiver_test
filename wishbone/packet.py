@@ -1,3 +1,4 @@
+from math import ceil
 from collections import OrderedDict
 
 from litex.gen import *
@@ -7,13 +8,9 @@ from litex.soc.interconnect import stream
 from litex.soc.interconnect.stream import EndpointDescription
 
 
-# TODO: imported from LiteX, cleanup if needed
 def reverse_bytes(signal):
-    n = (len(signal)+7)//8
-    r = []
-    for i in reversed(range(n)):
-        r.append(signal[i*8:min((i+1)*8, len(signal))])
-    return Cat(iter(r))
+    n = ceil(len(signal)/8)
+    return Cat(iter([signal[i*8:(i+1)*8] for i in reversed(range(n))]))
 
 
 class HeaderField:
@@ -68,6 +65,7 @@ class Header:
             else:
                 r.append(field.eq(signal[start:end]))
         return r
+
 
 class Arbiter(Module):
     def __init__(self, masters, slave):
@@ -127,7 +125,7 @@ class Dispatcher(Module):
                 cases[idx] = [master.connect(slave)]
             cases["default"] = [master.ready.eq(1)]
             self.comb += Case(sel, cases)
-# TODO: imported from LiteX, cleanup if needed
+
 
 packet_header_length = 12
 packet_header_fields = {
