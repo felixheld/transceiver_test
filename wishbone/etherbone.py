@@ -11,7 +11,7 @@ and introduces some limitations:
 
 TODO:
 - report error status?
-- use cyc field 
+- use cyc field
 """
 
 from litex.gen import *
@@ -241,12 +241,12 @@ def _remove_from_layout(layout, *args):
             r.append(f)
     return r
 
-def eth_etherbone_packet_description(dw):
+def etherbone_packet_description(dw):
     layout = etherbone_packet_header.get_layout()
     layout += [("data", dw)]
     return stream.EndpointDescription(layout)
 
-def eth_etherbone_packet_user_description(dw):
+def etherbone_packet_user_description(dw):
     layout = etherbone_packet_header.get_layout()
     layout = _remove_from_layout(layout,
                                  "magic",
@@ -256,12 +256,12 @@ def eth_etherbone_packet_user_description(dw):
     layout += user_description(dw).payload_layout
     return stream.EndpointDescription(layout)
 
-def eth_etherbone_record_description(dw):
+def etherbone_record_description(dw):
     layout = etherbone_record_header.get_layout()
     layout += [("data", dw)]
     return stream.EndpointDescription(layout)
 
-def eth_etherbone_mmap_description(dw):
+def etherbone_mmap_description(dw):
     layout = [
         ("we", 1),
         ("count", 8),
@@ -278,14 +278,14 @@ def eth_etherbone_mmap_description(dw):
 class EtherbonePacketPacketizer(Packetizer):
     def __init__(self):
         Packetizer.__init__(self,
-            eth_etherbone_packet_description(32),
+            etherbone_packet_description(32),
             user_description(32),
             etherbone_packet_header)
 
 
 class EtherbonePacketTX(Module):
     def __init__(self):
-        self.sink = sink = stream.Endpoint(eth_etherbone_packet_user_description(32))
+        self.sink = sink = stream.Endpoint(etherbone_packet_user_description(32))
         self.source = source = stream.Endpoint(user_description(32))
 
         # # #
@@ -325,14 +325,14 @@ class EtherbonePacketDepacketizer(Depacketizer):
     def __init__(self):
         Depacketizer.__init__(self,
             user_description(32),
-            eth_etherbone_packet_description(32),
+            etherbone_packet_description(32),
             etherbone_packet_header)
 
 
 class EtherbonePacketRX(Module):
     def __init__(self):
         self.sink = sink = stream.Endpoint(user_description(32))
-        self.source = source = stream.Endpoint(eth_etherbone_packet_user_description(32))
+        self.source = source = stream.Endpoint(etherbone_packet_user_description(32))
 
         # # #
 
@@ -400,27 +400,27 @@ class EtherbonePacket(Module):
 class EtherboneRecordPacketizer(Packetizer):
     def __init__(self):
         Packetizer.__init__(self,
-            eth_etherbone_record_description(32),
-            eth_etherbone_packet_user_description(32),
+            etherbone_record_description(32),
+            etherbone_packet_user_description(32),
             etherbone_record_header)
 
 
 class EtherboneRecordDepacketizer(Depacketizer):
     def __init__(self):
         Depacketizer.__init__(self,
-            eth_etherbone_packet_user_description(32),
-            eth_etherbone_record_description(32),
+            etherbone_packet_user_description(32),
+            etherbone_record_description(32),
             etherbone_record_header)
 
 
 class EtherboneRecordReceiver(Module):
     def __init__(self, buffer_depth=256):
-        self.sink = sink = stream.Endpoint(eth_etherbone_record_description(32))
-        self.source = source = stream.Endpoint(eth_etherbone_mmap_description(32))
+        self.sink = sink = stream.Endpoint(etherbone_record_description(32))
+        self.source = source = stream.Endpoint(etherbone_mmap_description(32))
 
         # # #
 
-        fifo = stream.SyncFIFO(eth_etherbone_record_description(32), buffer_depth,
+        fifo = stream.SyncFIFO(etherbone_record_description(32), buffer_depth,
                                buffered=True)
         self.submodules += fifo
         self.comb += sink.connect(fifo.sink)
@@ -498,12 +498,12 @@ class EtherboneRecordReceiver(Module):
 
 class EtherboneRecordSender(Module):
     def __init__(self, buffer_depth=256):
-        self.sink = sink = stream.Endpoint(eth_etherbone_mmap_description(32))
-        self.source = source = stream.Endpoint(eth_etherbone_record_description(32))
+        self.sink = sink = stream.Endpoint(etherbone_mmap_description(32))
+        self.source = source = stream.Endpoint(etherbone_record_description(32))
 
         # # #
 
-        pbuffer = stream.SyncFIFO(eth_etherbone_mmap_description(32), buffer_depth)
+        pbuffer = stream.SyncFIFO(etherbone_mmap_description(32), buffer_depth)
         self.submodules += pbuffer
         self.comb += sink.connect(pbuffer.sink)
 
@@ -547,8 +547,8 @@ class EtherboneRecordSender(Module):
 
 class EtherboneRecord(Module):
     def __init__(self, endianness="big"):
-        self.sink = sink = stream.Endpoint(eth_etherbone_packet_user_description(32))
-        self.source = source = stream.Endpoint(eth_etherbone_packet_user_description(32))
+        self.sink = sink = stream.Endpoint(etherbone_packet_user_description(32))
+        self.source = source = stream.Endpoint(etherbone_packet_user_description(32))
 
         # # #
 
@@ -581,8 +581,8 @@ class EtherboneRecord(Module):
 
 class EtherboneWishboneMaster(Module):
     def __init__(self):
-        self.sink = sink = stream.Endpoint(eth_etherbone_mmap_description(32))
-        self.source = source = stream.Endpoint(eth_etherbone_mmap_description(32))
+        self.sink = sink = stream.Endpoint(etherbone_mmap_description(32))
+        self.source = source = stream.Endpoint(etherbone_mmap_description(32))
         self.bus = bus = wishbone.Interface()
 
         # # #
@@ -650,8 +650,8 @@ class EtherboneWishboneMaster(Module):
 class EtherboneWishboneSlave(Module):
     def __init__(self):
         self.bus = bus = wishbone.Interface()
-        self.sink = sink = stream.Endpoint(eth_etherbone_mmap_description(32))
-        self.source = source = stream.Endpoint(eth_etherbone_mmap_description(32))
+        self.sink = sink = stream.Endpoint(etherbone_mmap_description(32))
+        self.source = source = stream.Endpoint(etherbone_mmap_description(32))
 
         # # #
 
@@ -705,12 +705,12 @@ class EtherboneWishboneSlave(Module):
 
 class Etherbone(Module):
     def __init__(self, mode="master"):
-        self.sink = stream.Endpoint(user_description(32))
-        self.source = stream.Endpoint(user_description(32))
+        self.sink = sink = stream.Endpoint(user_description(32))
+        self.source = source = stream.Endpoint(user_description(32))
 
         # # #
 
-        self.submodules.packet = EtherbonePacket(self.source, self.sink)
+        self.submodules.packet = EtherbonePacket(source, sink)
         self.submodules.record = EtherboneRecord()
         if mode == "master":
             self.submodules.wishbone = EtherboneWishboneMaster()
