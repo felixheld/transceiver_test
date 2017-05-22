@@ -251,7 +251,7 @@ class GTH(Module):
 
                 #p_RXDFEAGCCTRL=1,
 #                #p_PCS_RSVD=0,
-#                p_PLL_SEL_MODE_GEN3=3,
+                p_PLL_SEL_MODE_GEN3=3,
 #                #p_PROCESS_PAR=2,
 #                p_RATE_SW_USE_DRP=1,
 #
