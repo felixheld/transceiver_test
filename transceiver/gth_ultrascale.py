@@ -244,10 +244,10 @@ class GTH(Module):
 
 
 #                i_RXCOMMADETEN=1,
-#                i_RXDFEAGCCTRL=1,
+                i_RXDFEAGCCTRL=1,
 #                i_RXMCOMMAALIGNEN=1,
-#                i_RXOSINTCFG=0xd,
-#                i_RXOSINTEN=1,
+                i_RXOSINTCFG=0xd,
+                i_RXOSINTEN=1,
 
                 #p_RXDFEAGCCTRL=1,
 #                #p_PCS_RSVD=0,
