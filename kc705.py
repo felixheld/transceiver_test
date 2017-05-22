@@ -45,6 +45,21 @@ class GTXTestSoC(SoCCore):
                 o_O=refclk)
         ]
 
+        user_sma_clock = Signal()
+        user_sma_clock_pads = platform.request("user_sma_clock")
+        self.specials += [
+            Instance("ODDR2", p_DDR_ALIGNMENT="NONE",
+                p_INIT=0, p_SRTYPE="SYNC",
+                i_D0=0, i_D1=1, i_S=0, i_R=0, i_CE=1,
+                i_C0=refclk, i_C1=~refclk,
+                o_Q=user_sma_clock),
+            Instance("OBUFDS",
+                i_I=user_sma_clock,
+                o_O=user_sma_clock_pads.p,
+                o_OB=user_sma_clock_pads.n
+            )
+        ]
+
         cpll = GTXChannelPLL(refclk, 125e6, 1.25e9)
         print(cpll)
         self.submodules += cpll
