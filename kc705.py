@@ -32,7 +32,7 @@ class BaseSoC(SoCCore):
 
 
 class GTXTestSoC(SoCCore):
-    def __init__(self, platform, medium="sma", protocol=None):
+    def __init__(self, platform, medium="sfp", protocol=None):
         BaseSoC.__init__(self, platform)
 
         refclk = Signal()
