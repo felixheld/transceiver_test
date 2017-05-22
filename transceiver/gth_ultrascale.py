@@ -114,7 +114,7 @@ class GTH(Module):
                 i_RESETOVRD=0,
 
                 # PMA Attributes
-                p_PMA_RSV1=0xf800,
+                p_PMA_RSV1=0xf000,
                 p_RX_BIAS_CFG0=0x0AB4,
                 p_RX_CM_TRIM=0b1010,
                 p_RX_CLK25_DIV=5,
@@ -126,9 +126,11 @@ class GTH(Module):
                 p_PD_TRANS_TIME_TO_P2=0x64,
 
                 # CPLL
+                p_CPLL_INIT_CFG0=0x2b2,
+                p_CPLL_LOCK_CFG=0x1e8,
                 p_CPLL_CFG0=0x67f8,
                 p_CPLL_CFG1=0xa4ac,
-                p_CPLL_CFG2=0xf007,
+                p_CPLL_CFG2=0x0007,
                 p_CPLL_CFG3=0x0000,
                 p_CPLL_FBDIV=cpll.config["n2"],
                 p_CPLL_FBDIV_45=cpll.config["n1"],
@@ -164,6 +166,7 @@ class GTH(Module):
                 o_TXDLYSRESETDONE=tx_init.Xxdlysresetdone,
                 o_TXPHALIGNDONE=tx_init.Xxphaligndone,
                 i_TXUSERRDY=tx_init.Xxuserrdy,
+                i_TXSYNCMODE=1,
 
                 # TX data
                 p_TX_DATA_WIDTH=20,
@@ -196,7 +199,7 @@ class GTH(Module):
 
                 # RX AFE
                 i_RXDFEXYDEN=1,
-                i_RXLPMEN=0,
+                #i_RXLPMEN=0,
 
                 # RX clock
                 i_RXRATE=0,
@@ -238,6 +241,63 @@ class GTH(Module):
                 i_GTHRXN=rx_pads.n,
                 o_GTHTXP=tx_pads.p,
                 o_GTHTXN=tx_pads.n,
+
+
+                i_RXCOMMADETEN=1,
+                i_RXDFEAGCCTRL=1,
+                i_RXLPMEN=1,
+                i_RXMCOMMAALIGNEN=1,
+                i_RXOSINTCFG=0xd,
+                i_RXOSINTEN=1,
+
+                #p_RXDFEAGCCTRL=1,
+                #p_PCS_RSVD=0,
+                p_PLL_SEL_MODE_GEN3=3,
+                #p_PROCESS_PAR=2,
+                p_RATE_SW_USE_DRP=1,
+
+                p_RXCDR_CFG0=0x0000,
+                p_RXCDR_CFG0_GEN3=0x0000,
+                p_RXCDR_CFG1=0x0000,
+                p_RXCDR_CFG1_GEN3=0x0000,
+                p_RXCDR_CFG2=0x07c6,
+                p_RXCDR_CFG2_GEN3=0x07e6,
+                p_RXCDR_CFG3=0x0000,
+                p_RXCDR_CFG3_GEN3=0x0000,
+                p_RXCDR_CFG4=0x0000,
+                p_RXCDR_CFG4_GEN3=0x0000,
+                p_RXCDR_CFG5=0x0000,
+                p_RXCDR_CFG5_GEN3=0x0000,
+
+                p_RXCDR_LOCK_CFG0=0x4480,
+                p_RXCDR_LOCK_CFG1=0x5fff,
+                p_RXCDR_LOCK_CFG2=0x77c3,
+
+                p_RXCFOK_CFG0=0x4000,
+                p_RXCFOK_CFG1=0x0065,
+                p_RXCFOK_CFG2=0x002e,
+
+                p_RXLPM_CFG=0x1000,
+
+                p_RXPI_CFG0=1,
+                p_RXPI_CFG1=1,
+                p_RXPI_CFG2=1,
+                p_RXPI_CFG3=1,
+                p_RXPI_CFG4=1,
+                p_RXPI_CFG5=1,
+                p_RXPI_CFG6=3,
+
+                p_RX_DFELPM_CFG0=6,
+                p_RX_DFELPM_CFG1=1,
+
+                p_RX_DFE_AGC_CFG0=2,
+                p_RX_DFE_AGC_CFG1=0,
+
+                p_RX_DFE_KL_LPM_KH_CFG0=1,
+                p_RX_DFE_KL_LPM_KH_CFG1=0,
+                p_RX_DFE_KL_LPM_KL_CFG0=1,
+                p_RX_DFE_KL_LPM_KL_CFG1=0,
+
             )
 
         tx_reset_deglitched = Signal()
