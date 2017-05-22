@@ -1,5 +1,4 @@
 - fix RX equalization on KC705? (not working with all SFP modules/cables/fiber)
-- fix RX on KCU105 (only working with near end pma loopback, pma config?)
 - fix TX on Artix7 (RXRESETDONE not asserted)
 - add phase detection or idelay on serdes_ultrascale and test rx
 - add multilanes wrapper
