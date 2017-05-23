@@ -81,7 +81,7 @@ class GTXTestSoC(SoCCore):
         self.submodules += gtx
 
         counter = Signal(32)
-        self.sync += counter.eq(counter + 1)
+        self.sync.rtio += counter.eq(counter + 1)
 
         if protocol is None:
             self.comb += [

@@ -142,7 +142,6 @@ class GTH(Module):
                 o_CPLLLOCK=cpll.lock,
                 i_CPLLLOCKEN=1,
                 i_CPLLREFCLKSEL=0b001,
-                p_PLL_SEL_MODE_GEN3=3,
                 i_TSTIN=2**20-1,
                 i_GTREFCLK0=cpll.refclk,
 

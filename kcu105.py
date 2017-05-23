@@ -79,7 +79,7 @@ class GTHTestSoC(BaseSoC):
         self.submodules += gth
 
         counter = Signal(32)
-        self.sync += counter.eq(counter + 1)
+        self.sync.rtio += counter.eq(counter + 1)
 
         self.comb += [
             gth.encoder.k[0].eq(1),
