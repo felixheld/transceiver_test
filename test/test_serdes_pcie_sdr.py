@@ -12,7 +12,8 @@ print(identifier)
 
 from litescope.software.driver.analyzer import LiteScopeAnalyzerDriver
 analyzer = LiteScopeAnalyzerDriver(wb.regs, "analyzer", debug=True)
-analyzer.configure_trigger(cond={})
+#analyzer.configure_trigger(cond={"gtpinit_debug" : 3})
+analyzer.configure_trigger()
 analyzer.configure_subsampler(1)
 analyzer.run(offset=128, length=1024)
 while not analyzer.done():

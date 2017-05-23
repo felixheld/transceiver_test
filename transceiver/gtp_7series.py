@@ -129,6 +129,9 @@ class GTP(Module):
         rx_init = ClockDomainsRenamer("rtio")(
             GTPInit(self.rtio_clk_freq, True))
         self.submodules += tx_init, rx_init
+        # debug
+        self.tx_init = tx_init
+        self.rx_init = rx_init
         self.comb += [
             tx_init.plllock.eq(qpll.lock),
             rx_init.plllock.eq(qpll.lock),

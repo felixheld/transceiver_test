@@ -73,7 +73,7 @@ class GTPTestSoC(BaseSoC):
         "analyzer": 20
     }
     csr_map.update(BaseSoC.csr_map)
-    def __init__(self, platform, loopback=True, with_analyzer=False):
+    def __init__(self, platform, loopback=True, with_analyzer=True):
         BaseSoC.__init__(self, platform)
 
         refclk100 = Signal()
@@ -154,6 +154,10 @@ class GTPTestSoC(BaseSoC):
 
         if with_analyzer:
             analyzer_signals = [
+                gtp.tx_init.restart,
+                gtp.tx_init.debug,
+                gtp.rx_init.restart,
+                gtp.rx_init.debug,
                 gtp.decoders[0].input,
                 gtp.decoders[0].d,
                 gtp.decoders[0].k,
@@ -161,7 +165,7 @@ class GTPTestSoC(BaseSoC):
                 gtp.decoders[1].d,
                 gtp.decoders[1].k,
             ]
-            self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 2048, cd="sys")
+            self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 2048, cd_ratio=2, cd="rtio")
 
     def do_exit(self, vns):
         if hasattr(self, "analyzer"):

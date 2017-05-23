@@ -10,6 +10,8 @@ class GTPInit(Module):
         self.done = Signal()
         self.restart = Signal()
 
+        self.debug = Signal(8)
+
         # GTP signals
         self.plllock = Signal()
         self.pllreset = Signal()
@@ -85,12 +87,14 @@ class GTPInit(Module):
         self.comb += Xxphaligndone_rising.eq(Xxphaligndone & ~Xxphaligndone_r)
 
         startup_fsm.act("RESET_ALL",
+            self.debug.eq(0),
             gtXxreset.eq(1),
             self.pllreset.eq(1),
             startup_timer.wait.eq(1),
             NextState("RELEASE_PLL_RESET")
         )
         startup_fsm.act("RELEASE_PLL_RESET",
+            self.debug.eq(1),
             gtXxreset.eq(1),
             startup_timer.wait.eq(1),
             If(plllock & startup_timer.done, NextState("RELEASE_GTP_RESET"))
@@ -100,12 +104,14 @@ class GTPInit(Module):
         # of gtXxreset)
         if rx:
             startup_fsm.act("RELEASE_GTP_RESET",
+                self.debug.eq(2),
                 Xxuserrdy.eq(1),
                 cdr_stable_timer.wait.eq(1),
                 If(Xxresetdone & cdr_stable_timer.done, NextState("ALIGN"))
             )
             # Delay alignment
             startup_fsm.act("ALIGN",
+                self.debug.eq(3),
                 Xxuserrdy.eq(1),
                 Xxdlysreset.eq(1),
                 If(Xxdlysresetdone,
@@ -113,6 +119,7 @@ class GTPInit(Module):
                 )
             )
             startup_fsm.act("WAIT_ALIGN_DONE",
+                self.debug.eq(4),
                 Xxuserrdy.eq(1),
                 If(Xxsyncdone,
                     NextState("READY")
@@ -120,11 +127,13 @@ class GTPInit(Module):
             )
         else:
             startup_fsm.act("RELEASE_GTP_RESET",
+                self.debug.eq(2),
                 Xxuserrdy.eq(1),
                 If(Xxresetdone, NextState("ALIGN"))
             )
             # Delay alignment
             startup_fsm.act("ALIGN",
+                self.debug.eq(3),
                 Xxuserrdy.eq(1),
                 Xxdlysreset.eq(1),
                 If(Xxdlysresetdone,
@@ -133,6 +142,7 @@ class GTPInit(Module):
             )
             # Phase init
             startup_fsm.act("PHINIT",
+                self.debug.eq(4),
                 Xxuserrdy.eq(1),
                 Xxphinit.eq(1),
                 If(Xxphinitdone,
@@ -141,6 +151,7 @@ class GTPInit(Module):
             )
             # Phase align
             startup_fsm.act("PHALIGN",
+                self.debug.eq(5),
                 Xxuserrdy.eq(1),
                 Xxphalign.eq(1),
                 If(Xxphaligndone_rising,
@@ -148,6 +159,7 @@ class GTPInit(Module):
                 )
             )
             startup_fsm.act("DLYEN",
+                self.debug.eq(6),
                 Xxuserrdy.eq(1),
                 Xxdlyen.eq(1),
                 If(Xxphaligndone_rising,
@@ -155,6 +167,7 @@ class GTPInit(Module):
                 )
             )
         startup_fsm.act("READY",
+            self.debug.eq(7),
             Xxuserrdy.eq(1),
             self.done.eq(1),
             If(self.restart, NextState("RESET_ALL"))
