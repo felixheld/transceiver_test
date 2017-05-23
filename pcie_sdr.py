@@ -73,7 +73,7 @@ class GTPTestSoC(BaseSoC):
         "analyzer": 20
     }
     csr_map.update(BaseSoC.csr_map)
-    def __init__(self, platform):
+    def __init__(self, platform, with_analyzer=False):
         BaseSoC.__init__(self, platform)
 
         refclk100 = Signal()
@@ -117,7 +117,7 @@ class GTPTestSoC(BaseSoC):
         self.submodules += gtp
 
         counter = Signal(32)
-        self.sync += counter.eq(counter + 1)
+        self.sync.rtio += counter.eq(counter + 1)
 
         self.comb += [
             gtp.encoder.k[0].eq(1),
@@ -141,18 +141,20 @@ class GTPTestSoC(BaseSoC):
         self.sync.rtio += rtio_counter.eq(rtio_counter + 1)
         self.comb += platform.request("user_led", 0).eq(rtio_counter[26])
 
-        analyzer_signals = [
-            gtp.decoders[0].input,
-            gtp.decoders[0].d,
-            gtp.decoders[0].k,
-            gtp.decoders[1].input,
-            gtp.decoders[1].d,
-            gtp.decoders[1].k,
-        ]
-        self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 2048, cd="sys")
+        if with_analyzer:
+            analyzer_signals = [
+                gtp.decoders[0].input,
+                gtp.decoders[0].d,
+                gtp.decoders[0].k,
+                gtp.decoders[1].input,
+                gtp.decoders[1].d,
+                gtp.decoders[1].k,
+            ]
+            self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 2048, cd="sys")
 
     def do_exit(self, vns):
-        self.analyzer.export_csv(vns, "test/analyzer.csv")
+        if hasattr(self, "analyzer"):
+            self.analyzer.export_csv(vns, "test/analyzer.csv")
 
 
 def main():
