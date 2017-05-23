@@ -73,7 +73,7 @@ class GTPTestSoC(BaseSoC):
         "analyzer": 20
     }
     csr_map.update(BaseSoC.csr_map)
-    def __init__(self, platform, loopback=True, with_analyzer=True):
+    def __init__(self, platform, loopback=True, with_analyzer=False):
         BaseSoC.__init__(self, platform)
 
         refclk100 = Signal()
@@ -104,7 +104,7 @@ class GTPTestSoC(BaseSoC):
         ]
         platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
 
-        qpll = GTPQuadPLL(refclk125, 125e6, 1.25e9)
+        qpll = GTPQuadPLL(refclk125, 125e6, 1.25e9, refclk_from_fabric=True)
         print(qpll)
         self.submodules += qpll
 

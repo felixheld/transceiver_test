@@ -7,7 +7,7 @@ from transceiver.clock_aligner import BruteforceClockAligner
 
 
 class GTPQuadPLL(Module):
-    def __init__(self, refclk, refclk_freq, linerate):
+    def __init__(self, refclk, refclk_freq, linerate, refclk_from_fabric=False):
         self.clk = Signal()
         self.refclk = Signal()
         self.reset = Signal()
@@ -19,8 +19,8 @@ class GTPQuadPLL(Module):
         self.specials += \
             Instance("GTPE2_COMMON",
                 # common
-                #i_GTREFCLK0=refclk, # FIXME
-                i_GTGREFCLK0=refclk, # FIXME
+                i_GTREFCLK0=0 if refclk_from_fabric else refclk,
+                i_GTGREFCLK0=refclk if refclk_from_fabric else 0,
                 i_BGBYPASSB=1,
                 i_BGMONITORENB=1,
                 i_BGPDB=1,
@@ -28,21 +28,18 @@ class GTPQuadPLL(Module):
                 i_RCALENB=1,
 
                 # pll0
-                #p_PLL0_CFG=,
-                #p_PLL0_LOCK_CFG=,
-                #p_PLL0_INIT_CFG=,
                 p_PLL0_FBDIV=self.config["n2"],
                 p_PLL0_FBDIV_45=self.config["n1"],
                 p_PLL0_REFCLK_DIV=self.config["m"],
                 i_PLL0LOCKEN=1,
                 i_PLL0PD=0,
-                i_PLL0REFCLKSEL=0b111,
+                i_PLL0REFCLKSEL=0b001,
                 i_PLL0RESET=self.reset,
                 o_PLL0LOCK=self.lock,
                 o_PLL0OUTCLK=self.clk,
                 o_PLL0OUTREFCLK=self.refclk,
 
-                # pll1 (not used)
+                # pll1 (not used: power down)
                 i_PLL1PD=1,
              )
 
@@ -154,15 +151,18 @@ class GTP(Module):
                 i_RESETOVRD=0,
 
                 # PMA Attributes
-                #p_PMA_RSV=0x00018480,
-                #p_PMA_RSV2=0x2050,
+                p_PMA_RSV=0x333,
+                p_PMA_RSV2=0x2040,
                 p_PMA_RSV3=0,
                 p_PMA_RSV4=0,
-                #p_RX_BIAS_CFG=0b100,
-                #p_RX_CM_TRIM=0b010,
+                p_RX_BIAS_CFG=0b0000111100110011,
+                p_RX_CM_SEL=0b01,
+                p_RX_CM_TRIM=0b1010,
                 p_RX_OS_CFG=0b10000000,
-                p_RX_CLK25_DIV=5,
-                p_TX_CLK25_DIV=5,
+                p_RXLPM_IPCM_CFG=1,
+                i_RXELECIDLEMODE=0b11,
+                i_RXOSINTCFG=0b0010,
+                i_RXOSINTEN=1,
 
                 # Power-Down Attributes
                 p_PD_TRANS_TIME_FROM_P2=0x3c,
@@ -223,26 +223,32 @@ class GTP(Module):
                 o_RXSYNCDONE=rx_init.Xxsyncdone,
 
                 # RX clock
-                p_RXBUF_EN="FALSE",
+                p_RX_CLK25_DIV=5,
+                p_TX_CLK25_DIV=5,
                 p_RX_XCLK_SEL="RXUSR",
                 p_RXOUT_DIV=qpll.config["d"],
-                i_RXDDIEN=0,
                 i_RXSYSCLKSEL=0b00,
                 i_RXOUTCLKSEL=0b010,
                 o_RXOUTCLK=self.rxoutclk,
                 i_RXUSRCLK=ClockSignal("rtio_rx"),
                 i_RXUSRCLK2=ClockSignal("rtio_rx"),
-                #p_RXCDR_CFG=rxcdr_cfgs[qpll.config["d"]],
+                p_RXCDR_CFG=rxcdr_cfgs[qpll.config["d"]],
+                p_RXPI_CFG1=1,
+                p_RXPI_CFG2=1,
 
                 # RX Clock Correction Attributes
                 p_CLK_CORRECT_USE="FALSE",
-                #p_CLK_COR_SEQ_1_1=0b0100000000,
-                #p_CLK_COR_SEQ_2_1=0b0100000000,
-                p_CLK_COR_SEQ_1_ENABLE=0b1111,
-                p_CLK_COR_SEQ_2_ENABLE=0b1111,
 
                 # RX data
+                p_RXBUF_EN="FALSE",
+                p_RXDLY_CFG=0x001f,
+                p_RXDLY_LCFG=0x030,
+                p_RXPHDLY_CFG=0x084020,
+                p_RXPH_CFG=0xc00002,
                 p_RX_DATA_WIDTH=20,
+                i_RXCOMMADETEN=1,
+                i_RXDLYBYPASS=1,
+                i_RXDDIEN=0,
                 o_RXDISPERR=Cat(rxdata[9], rxdata[19]),
                 o_RXCHARISK=Cat(rxdata[8], rxdata[18]),
                 o_RXDATA=Cat(rxdata[:8], rxdata[10:18]),
@@ -255,53 +261,7 @@ class GTP(Module):
                 i_GTPRXP=rx_pads.p,
                 i_GTPRXN=rx_pads.n,
                 o_GTPTXP=tx_pads.p,
-                o_GTPTXN=tx_pads.n,
-
-
-                p_ALIGN_COMMA_ENABLE=0b1111111111,
-                p_CBCC_DATA_SOURCE_SEL="ENCODED",
-                p_CHAN_BOND_MAX_SKEW=1,
-                p_CHAN_BOND_SEQ_1_1=0,
-                p_CHAN_BOND_SEQ_2_1=0b0000000000,
-                p_CHAN_BOND_SEQ_2_2=0b0000000000,
-                p_CHAN_BOND_SEQ_2_3=0b0000000000,
-                p_CHAN_BOND_SEQ_2_4=0b0000000000,
-
-                p_CLK_COR_MAX_LAT=9,
-                p_CLK_COR_MIN_LAT=7,
-                p_CLK_COR_SEQ_2_1=0b0100000000,
-                p_CLK_COR_SEQ_2_2=0b0000000000,
-                p_CLK_COR_SEQ_2_3=0b0000000000,
-                p_CLK_COR_SEQ_2_4=0b0000000000,
-                p_DEC_VALID_COMMA_ONLY="TRUE",
-                p_DMONITOR_CFG=0x000A00,
-                p_PMA_RSV=0x333,
-                p_PMA_RSV2=0x2040,
-                p_RXBUF_ADDR_MODE="FAST",
-                p_RXCDR_CFG=0x0001107FE206021081010,
-                p_RXDLY_CFG=0x001f,
-                p_RXDLY_LCFG=0x030,
-                p_RXLPM_IPCM_CFG=1,
-
-                p_RXPHDLY_CFG=0x084020,
-                p_RXPH_CFG=0xc00002,
-                p_RXPI_CFG1=1,
-                p_RXPI_CFG2=1,
-                p_RXSLIDE_AUTO_WAIT=7,
-                p_RXSLIDE_MODE="PCS",
-                p_RX_BIAS_CFG=0b0000111100110011,
-
-                p_RX_CM_SEL=0b01,
-                p_RX_CM_TRIM=0b1010,
-                p_RX_DISPERR_SEQ_MATCH="FALSE",
-                p_SHOW_REALIGN_COMMA="FALSE",
-                p_SIM_RESET_SPEEDUP="FALSE",
-
-                i_RXCOMMADETEN=1,
-                i_RXDLYBYPASS=1,
-                i_RXELECIDLEMODE=0b11,
-                i_RXOSINTCFG=0b0010,
-                i_RXOSINTEN=1,
+                o_GTPTXN=tx_pads.n
             )
 
         tx_reset_deglitched = Signal()
