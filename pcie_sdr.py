@@ -73,7 +73,7 @@ class GTPTestSoC(BaseSoC):
         "analyzer": 20
     }
     csr_map.update(BaseSoC.csr_map)
-    def __init__(self, platform, with_analyzer=False):
+    def __init__(self, platform, loopback=True, with_analyzer=False):
         BaseSoC.__init__(self, platform)
 
         refclk100 = Signal()
@@ -122,9 +122,12 @@ class GTPTestSoC(BaseSoC):
         self.comb += [
             gtp.encoder.k[0].eq(1),
             gtp.encoder.d[0].eq((5 << 5) | 28),
-            gtp.encoder.k[1].eq(0),
-            gtp.encoder.d[1].eq(counter[26:]),
+            gtp.encoder.k[1].eq(0)
         ]
+        if loopback:
+            self.comb += gtp.encoder.d[1].eq(gtp.decoders[1].d)
+        else:
+            self.comb += gtp.encoder.d[1].eq(counter[26:])
 
         self.crg.cd_sys.clk.attr.add("keep")
         gtp.cd_rtio.clk.attr.add("keep")
