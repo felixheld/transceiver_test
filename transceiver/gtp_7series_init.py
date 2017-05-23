@@ -107,7 +107,8 @@ class GTPInit(Module):
                 self.debug.eq(2),
                 Xxuserrdy.eq(1),
                 cdr_stable_timer.wait.eq(1),
-                If(Xxresetdone & cdr_stable_timer.done, NextState("ALIGN"))
+                #If(Xxresetdone & cdr_stable_timer.done, NextState("ALIGN"))
+                If(cdr_stable_timer.done, NextState("ALIGN")) # FIXME!
             )
             # Delay alignment
             startup_fsm.act("ALIGN",
@@ -121,7 +122,8 @@ class GTPInit(Module):
             startup_fsm.act("WAIT_ALIGN_DONE",
                 self.debug.eq(4),
                 Xxuserrdy.eq(1),
-                If(Xxsyncdone,
+                If(1,
+                #If(Xxsyncdone, # FIXME!
                     NextState("READY")
                 )
             )
