@@ -4,6 +4,10 @@ from litex.gen import *
 from litex.gen.genlib.cdc import MultiReg, PulseSynchronizer
 from litex.gen.genlib.misc import WaitTimer
 
+# TODO:
+# code is working but it seems we need to follow the obscure rx init sequence
+# described in https://www.xilinx.com/support/answers/53561.html to remove
+# our work arounds...
 
 class GTPInit(Module):
     def __init__(self, sys_clk_freq, rx):

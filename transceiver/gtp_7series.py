@@ -149,6 +149,7 @@ class GTP(Module):
             Instance("GTPE2_CHANNEL",
                 i_GTRESETSEL=0,
                 i_RESETOVRD=0,
+                p_SIM_RESET_SPEEDUP="FALSE",
 
                 # PMA Attributes
                 p_PMA_RSV=0x333,
