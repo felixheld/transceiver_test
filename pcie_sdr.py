@@ -140,9 +140,17 @@ class GTPTestSoC(BaseSoC):
             gtp.cd_rtio.clk,
             gtp.cd_rtio_rx.clk)
 
+        rtio_counter_led = Signal()
         rtio_counter = Signal(32)
         self.sync.rtio += rtio_counter.eq(rtio_counter + 1)
-        self.comb += platform.request("user_led", 0).eq(rtio_counter[26])
+        self.comb += rtio_counter_led.eq(rtio_counter[26])
+
+        rtio_rx_counter_led = Signal()
+        rtio_rx_counter = Signal(32)
+        self.sync.rtio_rx += rtio_rx_counter.eq(rtio_rx_counter + 1)
+        self.comb += rtio_rx_counter_led.eq(rtio_rx_counter[26])
+
+        self.comb += platform.request("user_led", 0).eq(rtio_counter_led ^ rtio_rx_counter_led)
 
         if with_analyzer:
             analyzer_signals = [
