@@ -4,7 +4,7 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.gen.genlib.resetsync import AsyncResetSynchronizer
 from litex.build.generic_platform import *
-from litex.boards.platforms import arty
+from litex.boards.platforms import nexys_video as nexys
 
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
@@ -20,22 +20,22 @@ from litescope import LiteScopeAnalyzer
 
 
 serdes_io = [
-    # Note: We need to use TMDS (LVDS not supported on 3.3V PMODS)
-    # which requires an external 50 ohms pull-up on each diff pin.
-    ("serdes_clk", 0, # JC1
-        Subsignal("p", Pins("U12")),
-        Subsignal("n", Pins("V12")),
-        IOStandard("TMDS_33"),
+    ("master_serdes", 0,
+        Subsignal("clk_p", Pins("T1"), IOStandard("TMDS_33")), # hdmi_out clk
+        Subsignal("clk_n", Pins("U1"), IOStandard("TMDS_33")), # hdmi_out clk
+        Subsignal("tx_p", Pins("W1"), IOStandard("TMDS_33")),  # hdmi_out data0
+        Subsignal("tx_n", Pins("Y1"), IOStandard("TMDS_33")),  # hdmi_out data0
+        Subsignal("rx_p", Pins("W2"), IOStandard("TMDS_33")),  # hdmi_in data1
+        Subsignal("rx_n", Pins("Y2"), IOStandard("TMDS_33")),  # hdmi_in data1
     ),
-    ("serdes_tx", 0, # JC2
-        Subsignal("p", Pins("V10")),
-        Subsignal("n", Pins("V11")),
-        IOStandard("TMDS_33"),
-    ),
-    ("serdes_rx", 0, # JC4
-        Subsignal("p", Pins("T13")),
-        Subsignal("n", Pins("U13")),
-        IOStandard("TMDS_33"),
+
+    ("slave_serdes", 0,
+        Subsignal("clk_p", Pins("V4"), IOStandard("TMDS_33")), # hdmi_in clk
+        Subsignal("clk_n", Pins("W4"), IOStandard("TMDS_33")), # hdmi_in clk
+        Subsignal("tx_p", Pins("AA1"), IOStandard("TMDS_33")), # hdmi_out data1
+        Subsignal("tx_n", Pins("AB1"), IOStandard("TMDS_33")), # hdmi_out data1
+        Subsignal("rx_p", Pins("Y3"), IOStandard("TMDS_33")),  # hdmi_in data0
+        Subsignal("rx_n", Pins("AA3"), IOStandard("TMDS_33")), # hdmi_in data0
     ),
 ]
 
@@ -101,7 +101,7 @@ class BaseSoC(SoCCore):
             cpu_type=None,
             csr_data_width=32,
             with_uart=False,
-            ident="ARTY SERDES Test Design",
+            ident="Nexys SERDES Test Design",
             with_timer=False
         )
         self.submodules.crg = _CRG(platform)
@@ -138,10 +138,7 @@ class SERDESTestSoC(BaseSoC):
         self.comb += pll.refclk.eq(self.crg.cd_clk125.clk)
         self.submodules += pll
 
-        clock_pads = platform.request("serdes_clk")
-        tx_pads = platform.request("serdes_tx")
-        rx_pads = platform.request("serdes_rx")
-        serdes = SERDES(pll, clock_pads, tx_pads, rx_pads, mode="master")
+        serdes = SERDES(pll, platform.request("master_serdes"), mode="master")
         self.comb += serdes.produce_square_wave.eq(platform.request("user_sw", 0))
         self.submodules += serdes
 
@@ -214,86 +211,11 @@ class SERDESTestSoC(BaseSoC):
         self.analyzer.export_csv(vns, "test/analyzer.csv")
 
 
-class WishboneBridgeTestSoC(BaseSoC):
-    csr_map = {
-        "analyzer": 20
-    }
-    csr_map.update(BaseSoC.csr_map)
-
-    mem_map = {
-        "wbslave": 0x30000000,  # (shadow @0xb0000000)
-    }
-    mem_map.update(BaseSoC.mem_map)
-    def __init__(self, platform):
-        BaseSoC.__init__(self, platform)
-
-        # wishbone slave
-        slave_core = packet.Core(self.clk_freq)
-        slave_port = slave_core.crossbar.get_port(0x01)
-        slave_etherbone = etherbone.Etherbone(mode="slave")
-        self.submodules += slave_core, slave_etherbone
-        self.add_wb_slave(mem_decoder(self.mem_map["wbslave"]), slave_etherbone.wishbone.bus)
-        self.add_memory_region("wbslave", self.mem_map["wbslave"] | self.shadow_base, 0x1000)
-        self.comb += [
-            slave_port.source.connect(slave_etherbone.sink),
-            slave_etherbone.source.connect(slave_port.sink)
-        ]
-
-        # wishbone master
-        master_core = packet.Core(self.clk_freq)
-        master_port = master_core.crossbar.get_port(0x01)
-        master_etherbone = etherbone.Etherbone(mode="master")
-        master_sram = SRAM(1024, bus=master_etherbone.wishbone.bus)
-        self.submodules += master_core, master_etherbone, master_sram
-        self.comb += [
-            master_port.source.connect(master_etherbone.sink),
-            master_etherbone.source.connect(master_port.sink)
-        ]
-
-        # connect core directly
-        self.comb += [
-            master_core.source.connect(slave_core.sink),
-            slave_core.source.connect(master_core.sink)
-        ]
-
-         # analyzer
-        analyzer_signals = [
-            #slave_etherbone.wishbone.bus.adr,
-            #slave_etherbone.wishbone.bus.dat_w,
-            #slave_etherbone.wishbone.bus.dat_r,
-            slave_etherbone.wishbone.bus.sel,
-            slave_etherbone.wishbone.bus.cyc,
-            slave_etherbone.wishbone.bus.stb,
-            slave_etherbone.wishbone.bus.ack,
-            slave_etherbone.wishbone.bus.we,
-            slave_etherbone.wishbone.bus.cti,
-            slave_etherbone.wishbone.bus.bte,
-            slave_etherbone.wishbone.bus.err,
-
-            master_etherbone.wishbone.bus.adr,
-            master_etherbone.wishbone.bus.dat_w,
-            master_etherbone.wishbone.bus.dat_r,
-            master_etherbone.wishbone.bus.sel,
-            master_etherbone.wishbone.bus.cyc,
-            master_etherbone.wishbone.bus.stb,
-            master_etherbone.wishbone.bus.ack,
-            master_etherbone.wishbone.bus.we,
-            master_etherbone.wishbone.bus.cti,
-            master_etherbone.wishbone.bus.bte,
-            master_etherbone.wishbone.bus.err
-        ]
-        self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 512)
-
-    def do_exit(self, vns):
-        self.analyzer.export_csv(vns, "test/analyzer.csv")
-
-
 def main():
-    platform = arty.Platform()
+    platform = nexys.Platform()
     platform.add_extension(serdes_io)
-    #soc = SERDESTestSoC(platform)
-    soc = WishboneBridgeTestSoC(platform)
-    builder = Builder(soc, output_dir="build_arty", csr_csv="test/csr.csv")
+    soc = SERDESTestSoC(platform)
+    builder = Builder(soc, output_dir="build_nexys", csr_csv="test/csr.csv")
     vns = builder.build()
     soc.do_exit(vns)
 
