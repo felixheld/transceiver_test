@@ -3,3 +3,4 @@ Test of transceivers for board to board communication
 - Ultrascale (GTH): TX/RX working @ 1.25Gbps
 - Artix7 (GTP): TX/RX working @ 1.25Gbps
 - Ultrascale (Serdes): TX working @ 1.25Gbps / RX not finished/tested
+- Artix7 (Serdes): TX/RX not tested
