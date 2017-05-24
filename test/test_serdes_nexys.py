@@ -5,7 +5,7 @@ wb.open()
 
 # # #
 
-master_serdes_rx_bitslip = 0
+master_serdes_rx_bitslip = 16
 master_serdes_rx_delay = 0
 
 slave_serdes_rx_bitslip = 18
