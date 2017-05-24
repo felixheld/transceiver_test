@@ -36,6 +36,7 @@ serdes_io = [
         Subsignal("tx_n", Pins("AB1"), IOStandard("TMDS_33")), # hdmi_out data1
         Subsignal("rx_p", Pins("Y3"), IOStandard("TMDS_33")),  # hdmi_in data0
         Subsignal("rx_n", Pins("AA3"), IOStandard("TMDS_33")), # hdmi_in data0
+        Subsignal("txen", Pins("R3"), IOStandard("LVCMOS33")),
     ),
 ]
 
@@ -138,16 +139,16 @@ class SERDESTestSoC(BaseSoC):
     def __init__(self, platform, with_analyzer=False):
         BaseSoC.__init__(self, platform)
 
-        pll = SERDESPLL(125e6, 1.25e9)
-        self.comb += pll.refclk.eq(self.crg.cd_clk125.clk)
-        self.submodules += pll
-
         # master
 
-        self.submodules.master_serdes = master_serdes = SERDES(
-            pll, platform.request("master_serdes"), mode="master")
-        self.comb += master_serdes.produce_square_wave.eq(platform.request("user_sw", 0))
+        master_pll = SERDESPLL(125e6, 1.25e9)
+        self.comb += master_pll.refclk.eq(self.crg.cd_clk125.clk)
+        self.submodules += master_pll
 
+        master_pads = platform.request("master_serdes")
+        self.submodules.master_serdes = master_serdes = SERDES(
+            master_pll, master_pads, mode="master")
+        self.comb += master_serdes.produce_square_wave.eq(platform.request("user_sw", 0))
         self.submodules.master_serdes_control = master_serdes_control = SERDESControl()
         self.comb += [
             master_serdes.rx_bitslip_value.eq(master_serdes_control.rx_bitslip_value),
@@ -194,9 +195,17 @@ class SERDESTestSoC(BaseSoC):
 
         # slave
 
+        slave_pll = SERDESPLL(125e6, 1.25e9)
+        self.comb += slave_pll.refclk.eq(self.crg.cd_clk125.clk)
+        self.submodules += slave_pll
+
+        slave_pads = platform.request("slave_serdes")
         self.submodules.slave_serdes = slave_serdes = SERDES(
-            pll, platform.request("slave_serdes"), mode="slave")
-        self.comb += slave_serdes.produce_square_wave.eq(platform.request("user_sw", 1))
+            slave_pll, slave_pads, mode="slave")
+        self.comb += [
+            slave_serdes.produce_square_wave.eq(platform.request("user_sw", 1)),
+            slave_pads.txen.eq(1), # hdmi specific to enable link
+        ]
 
         self.submodules.slave_serdes_control = slave_serdes_control = SERDESControl()
         self.comb += [
