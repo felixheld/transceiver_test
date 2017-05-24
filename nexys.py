@@ -109,6 +109,9 @@ class BaseSoC(SoCCore):
                                                   clk_freq, baudrate=115200))
         self.add_wb_master(self.cpu_or_bridge.wishbone)
 
+        self.crg.cd_sys.clk.attr.add("keep")
+        platform.add_period_constraint(self.crg.cd_sys.clk, 10.0),
+
 
 class SERDESControl(Module, AutoCSR):
     def __init__(self):
@@ -127,88 +130,155 @@ class SERDESControl(Module, AutoCSR):
 
 class SERDESTestSoC(BaseSoC):
     csr_map = {
-        "serdes_control": 20,
-        "analyzer": 21
+        "master_serdes_control": 20,
+        "slave_serdes_control": 21,
+        "analyzer": 22
     }
     csr_map.update(BaseSoC.csr_map)
-    def __init__(self, platform):
+    def __init__(self, platform, with_analyzer=False):
         BaseSoC.__init__(self, platform)
 
         pll = SERDESPLL(125e6, 1.25e9)
         self.comb += pll.refclk.eq(self.crg.cd_clk125.clk)
         self.submodules += pll
 
-        serdes = SERDES(pll, platform.request("master_serdes"), mode="master")
-        self.comb += serdes.produce_square_wave.eq(platform.request("user_sw", 0))
-        self.submodules += serdes
+        # master
 
-        self.submodules.serdes_control =  serdes_control = SERDESControl()
+        self.submodules.master_serdes = master_serdes = SERDES(
+            pll, platform.request("master_serdes"), mode="master")
+        self.comb += master_serdes.produce_square_wave.eq(platform.request("user_sw", 0))
+
+        self.submodules.master_serdes_control = master_serdes_control = SERDESControl()
         self.comb += [
-            serdes.rx_bitslip_value.eq(serdes_control.rx_bitslip_value),
-            serdes.rx_delay_rst.eq(serdes_control.rx_delay_rst),
-            serdes.rx_delay_inc.eq(serdes_control.rx_delay_inc),
-            serdes.rx_delay_ce.eq(serdes_control.rx_delay_ce)
+            master_serdes.rx_bitslip_value.eq(master_serdes_control.rx_bitslip_value),
+            master_serdes.rx_delay_rst.eq(master_serdes_control.rx_delay_rst),
+            master_serdes.rx_delay_inc.eq(master_serdes_control.rx_delay_inc),
+            master_serdes.rx_delay_ce.eq(master_serdes_control.rx_delay_ce)
         ]
 
-        self.crg.cd_sys.clk.attr.add("keep")
-        serdes.cd_rtio.clk.attr.add("keep")
-        serdes.cd_serdes.clk.attr.add("keep")
-        serdes.cd_serdes_div.clk.attr.add("keep")
-        platform.add_period_constraint(self.crg.cd_sys.clk, 10.0),
-        platform.add_period_constraint(serdes.cd_rtio.clk, 16.0),
-        platform.add_period_constraint(serdes.cd_serdes.clk, 1.6),
-        platform.add_period_constraint(serdes.cd_serdes_div.clk, 6.4)
+        master_serdes.cd_rtio.clk.attr.add("keep")
+        master_serdes.cd_serdes.clk.attr.add("keep")
+        master_serdes.cd_serdes_div.clk.attr.add("keep")
+        platform.add_period_constraint(master_serdes.cd_rtio.clk, 16.0),
+        platform.add_period_constraint(master_serdes.cd_serdes.clk, 1.6),
+        platform.add_period_constraint(master_serdes.cd_serdes_div.clk, 6.4)
         self.platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
-            serdes.cd_rtio.clk,
-            serdes.cd_serdes.clk,
-            serdes.cd_serdes_div.clk)
+            master_serdes.cd_rtio.clk,
+            master_serdes.cd_serdes.clk,
+            master_serdes.cd_serdes_div.clk)
 
         counter = Signal(32)
-        self.sync.rtio += counter.eq(counter + 1)
+        self.sync.master_serdes_rtio += counter.eq(counter + 1)
         self.comb += [
-            serdes.encoder.d[0].eq(counter),
-            serdes.encoder.d[1].eq(counter)
+            master_serdes.encoder.d[0].eq(counter),
+            master_serdes.encoder.d[1].eq(counter)
         ]
 
-        sys_counter = Signal(32)
-        self.sync.sys += sys_counter.eq(sys_counter + 1)
-        self.comb += platform.request("user_led", 0).eq(sys_counter[26])
+        master_sys_counter = Signal(32)
+        self.sync.sys += master_sys_counter.eq(master_sys_counter + 1)
+        self.comb += platform.request("user_led", 0).eq(master_sys_counter[26])
 
-        rtio_counter = Signal(32)
-        self.sync.rtio += rtio_counter.eq(rtio_counter + 1)
-        self.comb += platform.request("user_led", 1).eq(rtio_counter[26])
+        master_rtio_counter = Signal(32)
+        self.sync.master_serdes_rtio += master_rtio_counter.eq(master_rtio_counter + 1)
+        self.comb += platform.request("user_led", 1).eq(master_rtio_counter[26])
 
-        serdes_div_counter = Signal(32)
-        self.sync.serdes_div += serdes_div_counter.eq(serdes_div_counter + 1)
-        self.comb += platform.request("user_led", 2).eq(serdes_div_counter[26])
+        master_serdes_div_counter = Signal(32)
+        self.sync.master_serdes_serdes_div += master_serdes_div_counter.eq(master_serdes_div_counter + 1)
+        self.comb += platform.request("user_led", 2).eq(master_serdes_div_counter[26])
 
-        serdes_counter = Signal(32)
-        self.sync.serdes += serdes_counter.eq(serdes_counter + 1)
-        self.comb += platform.request("user_led", 3).eq(serdes_counter[26])
+        master_serdes_counter = Signal(32)
+        self.sync.master_serdes_serdes += master_serdes_counter.eq(master_serdes_counter + 1)
+        self.comb += platform.request("user_led", 3).eq(master_serdes_counter[26])
 
-        analyzer_signals = [
-            serdes.encoder.k[0],
-            serdes.encoder.d[0],
-            serdes.encoder.output[0],
-            serdes.encoder.k[1],
-            serdes.encoder.d[1],
-            serdes.encoder.output[1],
 
-            serdes.decoders[0].input,
-            serdes.decoders[0].d,
-            serdes.decoders[0].k,
-            serdes.decoders[1].input,
-            serdes.decoders[1].d,
-            serdes.decoders[1].k,
+        # slave
+
+        self.submodules.slave_serdes = slave_serdes = SERDES(
+            pll, platform.request("slave_serdes"), mode="slave")
+        self.comb += slave_serdes.produce_square_wave.eq(platform.request("user_sw", 1))
+
+        self.submodules.slave_serdes_control = slave_serdes_control = SERDESControl()
+        self.comb += [
+            slave_serdes.rx_bitslip_value.eq(slave_serdes_control.rx_bitslip_value),
+            slave_serdes.rx_delay_rst.eq(slave_serdes_control.rx_delay_rst),
+            slave_serdes.rx_delay_inc.eq(slave_serdes_control.rx_delay_inc),
+            slave_serdes.rx_delay_ce.eq(slave_serdes_control.rx_delay_ce)
         ]
-        self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 512, cd="rtio")
+
+        slave_serdes.cd_rtio.clk.attr.add("keep")
+        slave_serdes.cd_serdes.clk.attr.add("keep")
+        slave_serdes.cd_serdes_div.clk.attr.add("keep")
+        platform.add_period_constraint(slave_serdes.cd_rtio.clk, 16.0),
+        platform.add_period_constraint(slave_serdes.cd_serdes.clk, 1.6),
+        platform.add_period_constraint(slave_serdes.cd_serdes_div.clk, 6.4)
+        self.platform.add_false_path_constraints(
+            self.crg.cd_sys.clk,
+            slave_serdes.cd_rtio.clk,
+            slave_serdes.cd_serdes.clk,
+            slave_serdes.cd_serdes_div.clk)
+
+        counter = Signal(32)
+        self.sync.slave_serdes_rtio += counter.eq(counter + 1)
+        self.comb += [
+            slave_serdes.encoder.d[0].eq(counter),
+            slave_serdes.encoder.d[1].eq(counter)
+        ]
+
+        slave_sys_counter = Signal(32)
+        self.sync.sys += slave_sys_counter.eq(slave_sys_counter + 1)
+        self.comb += platform.request("user_led", 4).eq(slave_sys_counter[26])
+
+        slave_rtio_counter = Signal(32)
+        self.sync.slave_serdes_rtio += slave_rtio_counter.eq(slave_rtio_counter + 1)
+        self.comb += platform.request("user_led", 5).eq(slave_rtio_counter[26])
+
+        slave_serdes_div_counter = Signal(32)
+        self.sync.slave_serdes_serdes_div += slave_serdes_div_counter.eq(slave_serdes_div_counter + 1)
+        self.comb += platform.request("user_led", 6).eq(slave_serdes_div_counter[26])
+
+        slave_serdes_counter = Signal(32)
+        self.sync.slave_serdes_serdes += slave_serdes_counter.eq(slave_serdes_counter + 1)
+        self.comb += platform.request("user_led", 7).eq(slave_serdes_counter[26])
+
+        if with_analyzer:
+            analyzer_signals = [
+                master_serdes.encoder.k[0],
+                master_serdes.encoder.d[0],
+                master_serdes.encoder.output[0],
+                master_serdes.encoder.k[1],
+                master_serdes.encoder.d[1],
+                master_serdes.encoder.output[1],
+
+                master_serdes.decoders[0].input,
+                master_serdes.decoders[0].d,
+                master_serdes.decoders[0].k,
+                master_serdes.decoders[1].input,
+                master_serdes.decoders[1].d,
+                master_serdes.decoders[1].k,
+
+                slave_serdes.encoder.k[0],
+                slave_serdes.encoder.d[0],
+                slave_serdes.encoder.output[0],
+                slave_serdes.encoder.k[1],
+                slave_serdes.encoder.d[1],
+                slave_serdes.encoder.output[1],
+
+                slave_serdes.decoders[0].input,
+                slave_serdes.decoders[0].d,
+                slave_serdes.decoders[0].k,
+                slave_serdes.decoders[1].input,
+                slave_serdes.decoders[1].d,
+                slave_serdes.decoders[1].k,
+            ]
+            self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 512, cd="rtio0")
 
         # we are running the PLLE2_BASE out of spec..., avoid error
         platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks PDRC-43]")
 
     def do_exit(self, vns):
-        self.analyzer.export_csv(vns, "test/analyzer.csv")
+        if hasattr(self, "analyzer"):
+            self.analyzer.export_csv(vns, "test/analyzer.csv")
 
 
 def main():

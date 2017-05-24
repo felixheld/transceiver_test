@@ -183,14 +183,16 @@ class SERDES(Module):
         # rx clock
         if mode == "slave":
             clk_i = Signal()
+            clk_i_bufg = Signal()
             self.specials += [
                 Instance("IBUFDS",
-                    i_I=pads.rx_p,
-                    i_IB=pads_rx_n,
+                    i_I=pads.clk_p,
+                    i_IB=pads.clk_n,
                     o_O=clk_i
-                )
+                ),
+                Instance("BUFG", i_I=clk_i, o_O=clk_i_bufg),
             ]
-            self.comb += pll.refclk.eq(clk_i)
+            self.comb += pll.refclk.eq(clk_i_bufg)
 
         # rx
         self.submodules.rx_gearbox = Gearbox(8, "serdes_div", 20, "rtio")
