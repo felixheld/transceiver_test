@@ -100,7 +100,7 @@ class PhaseDetector(Module):
 
 
 class SERDES(Module):
-    def __init__(self, pll, clock_pads, tx_pads, rx_pads, mode="master"):
+    def __init__(self, pll, pads, mode="master"):
         self.produce_square_wave = Signal()
         self.submodules.encoder = ClockDomainsRenamer("rtio")(
             Encoder(2, True))
@@ -111,9 +111,9 @@ class SERDES(Module):
         # clocking
         # master mode:
         # - linerate/10 pll refclk provided externally
-        # - linerate/10 clock generated on clock_pads
+        # - linerate/10 clock generated on clk_pads
         # slave mode:
-        # - linerate/10 pll refclk provided by clock pads
+        # - linerate/10 pll refclk provided by clk_pads
         self.clock_domains.cd_rtio = ClockDomain()
         self.clock_domains.cd_serdes = ClockDomain()
         self.clock_domains.cd_serdes_div = ClockDomain()
@@ -146,8 +146,8 @@ class SERDES(Module):
                 ),
                 Instance("OBUFDS",
                     i_I=clk_o,
-                    o_O=clock_pads.p,
-                    o_OB=clock_pads.n
+                    o_O=pads.clk_p,
+                    o_OB=pads.clk_n
                 )
             ]
 
@@ -175,8 +175,8 @@ class SERDES(Module):
             ),
             Instance("OBUFDS",
                 i_I=serdes_o,
-                o_O=tx_pads.p,
-                o_OB=tx_pads.n
+                o_O=pads.tx_p,
+                o_OB=pads.tx_n
             )
         ]
 
@@ -185,8 +185,8 @@ class SERDES(Module):
             clk_i = Signal()
             self.specials += [
                 Instance("IBUFDS",
-                    i_I=clock_pads.p,
-                    i_IB=clock_pads.n,
+                    i_I=pads.rx_p,
+                    i_IB=pads_rx_n,
                     o_O=clk_i
                 )
             ]
@@ -203,8 +203,8 @@ class SERDES(Module):
         serdes_s_i_nodelay = Signal()
         self.specials += [
             Instance("IBUFDS_DIFF_OUT",
-                i_I=rx_pads.p,
-                i_IB=rx_pads.n,
+                i_I=pads.rx_p,
+                i_IB=pads.rx_n,
                 o_O=serdes_m_i_nodelay,
                 o_OB=serdes_s_i_nodelay,
             )
