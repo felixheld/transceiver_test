@@ -136,7 +136,7 @@ class SERDESTestSoC(BaseSoC):
         "analyzer": 22
     }
     csr_map.update(BaseSoC.csr_map)
-    def __init__(self, platform, with_analyzer=False):
+    def __init__(self, platform, analyzer="slave"):
         BaseSoC.__init__(self, platform)
 
         # master
@@ -250,7 +250,7 @@ class SERDESTestSoC(BaseSoC):
         self.sync.slave_serdes_serdes += slave_serdes_counter.eq(slave_serdes_counter + 1)
         self.comb += platform.request("user_led", 7).eq(slave_serdes_counter[26])
 
-        if with_analyzer:
+        if analyzer == "master":
             analyzer_signals = [
                 master_serdes.encoder.k[0],
                 master_serdes.encoder.d[0],
@@ -264,8 +264,12 @@ class SERDESTestSoC(BaseSoC):
                 master_serdes.decoders[0].k,
                 master_serdes.decoders[1].input,
                 master_serdes.decoders[1].d,
-                master_serdes.decoders[1].k,
+                master_serdes.decoders[1].k
+            ]
+            self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 512, cd="master_serdes_rtio")
 
+        if analyzer == "slave":
+            analyzer_signals = [
                 slave_serdes.encoder.k[0],
                 slave_serdes.encoder.d[0],
                 slave_serdes.encoder.output[0],
@@ -280,7 +284,8 @@ class SERDESTestSoC(BaseSoC):
                 slave_serdes.decoders[1].d,
                 slave_serdes.decoders[1].k,
             ]
-            self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 512, cd="rtio0")
+            self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 512, cd="slave_serdes_rtio")
+
 
         # we are running the PLLE2_BASE out of spec..., avoid error
         platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks PDRC-43]")
