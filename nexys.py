@@ -20,6 +20,7 @@ from litescope import LiteScopeAnalyzer
 
 
 serdes_io = [
+    # hdmi loopback
     ("master_serdes", 0,
         Subsignal("clk_p", Pins("T1"), IOStandard("TMDS_33")), # hdmi_out clk
         Subsignal("clk_n", Pins("U1"), IOStandard("TMDS_33")), # hdmi_out clk
@@ -37,6 +38,26 @@ serdes_io = [
         Subsignal("rx_p", Pins("Y3"), IOStandard("TMDS_33")),  # hdmi_in data0
         Subsignal("rx_n", Pins("AA3"), IOStandard("TMDS_33")), # hdmi_in data0
         Subsignal("txen", Pins("R3"), IOStandard("LVCMOS33")),
+    ),
+    # cyusb3acc_005 fmc with loopback
+    ("master_serdes", 1,
+        Subsignal("clk_p", Pins("LPC:LA20_P")), # g21
+        Subsignal("clk_n", Pins("LPC:LA20_N")), # g22
+        Subsignal("tx_p", Pins("LPC:LA22_P")), # g24
+        Subsignal("tx_n", Pins("LPC:LA22_N")), # g25
+        Subsignal("rx_p", Pins("LPC:LA11_P")), # h16
+        Subsignal("rx_n", Pins("LPC:LA11_N")), # h17
+        IOStandard("LVCMOS25"),
+    ),
+
+    ("slave_serdes", 1,
+        Subsignal("clk_p", Pins("LPC:LA04_P")), # h10
+        Subsignal("clk_n", Pins("LPC:LA04_P")), # h11
+        Subsignal("tx_p", Pins("LPC:LA25_P")), # g27
+        Subsignal("tx_n", Pins("LPC:LA25_N")), # g28
+        Subsignal("rx_p", Pins("LPC:LA07_P")), # h13
+        Subsignal("rx_n", Pins("LPC:LA07_N")), # h14
+        IOStandard("LVCMOS25"),
     ),
 ]
 
@@ -146,7 +167,7 @@ class SERDESTestSoC(BaseSoC):
         "analyzer": 22
     }
     csr_map.update(BaseSoC.csr_map)
-    def __init__(self, platform, analyzer=None):
+    def __init__(self, platform, medium="hdmi", analyzer=None):
         BaseSoC.__init__(self, platform)
 
         # master
@@ -155,7 +176,10 @@ class SERDESTestSoC(BaseSoC):
         self.comb += master_pll.refclk.eq(self.crg.cd_clk125.clk)
         self.submodules += master_pll
 
-        master_pads = platform.request("master_serdes")
+        if medium == "hdmi":
+            master_pads = platform.request("master_serdes", 0)
+        elif medium == "fmc":
+            master_pads = platform.request("master_serdes", 1)
         self.submodules.master_serdes = master_serdes = SERDES(
             master_pll, master_pads, mode="master")
         self.comb += master_serdes.tx_produce_square_wave.eq(platform.request("user_sw", 0))
@@ -212,13 +236,15 @@ class SERDESTestSoC(BaseSoC):
         self.comb += slave_pll.refclk.eq(self.crg.cd_clk125.clk)
         self.submodules += slave_pll
 
-        slave_pads = platform.request("slave_serdes")
+        if medium == "hdmi":
+            slave_pads = platform.request("slave_serdes", 0)
+        elif medium == "fmc":
+            slave_pads = platform.request("slave_serdes", 1)
         self.submodules.slave_serdes = slave_serdes = SERDES(
             slave_pll, slave_pads, mode="slave")
-        self.comb += [
-            slave_serdes.tx_produce_square_wave.eq(platform.request("user_sw", 1)),
-            slave_pads.txen.eq(1), # hdmi specific to enable link
-        ]
+        self.comb += slave_serdes.tx_produce_square_wave.eq(platform.request("user_sw", 1))
+        if hasattr(slave_pads, "txen"):
+            self.comb += slave_pads.txen.eq(1) # hdmi specific to enable link
 
         self.submodules.slave_serdes_control = slave_serdes_control = SERDESControl()
         self.comb += [
