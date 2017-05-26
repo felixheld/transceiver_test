@@ -12,10 +12,6 @@ from litex.soc.cores.uart import UARTWishboneBridge
 
 from transceiver.serdes_7series import SERDESPLL, SERDES
 
-from wishbone import packet
-from wishbone import etherbone
-from litex.soc.interconnect.wishbone import SRAM
-
 from litescope import LiteScopeAnalyzer
 
 
