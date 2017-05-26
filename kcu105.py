@@ -116,7 +116,8 @@ class SERDESTestSoC(BaseSoC):
     def __init__(self, platform):
         BaseSoC.__init__(self, platform)
 
-        pll = SERDESPLL(ClockSignal(), 125e6, 1.25e9)
+        pll = SERDESPLL(125e6, 1.25e9)
+        self.comb += pll.refclk.eq(ClockSignal())
         self.submodules += pll
 
         tx_pads = platform.request("user_sma_clock")
