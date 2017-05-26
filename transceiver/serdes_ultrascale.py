@@ -107,6 +107,8 @@ class SERDES(Module):
         self.tx_prbs_config = Signal(2)
         self.tx_produce_square_wave = Signal()
 
+        self.rx_bitslip_value = Signal(5, reset=7)
+
         self.rx_prbs_config = Signal(2)
         self.rx_prbs_errors = Signal(32)
 
@@ -199,17 +201,26 @@ class SERDES(Module):
         ]
 
         # rx clock
+        use_bufr = True
         if mode == "slave":
             clk_i = Signal()
+
             clk_i_bufg = Signal()
             self.specials += [
                 Instance("IBUFDS",
                     i_I=pads.clk_p,
                     i_IB=pads.clk_n,
                     o_O=clk_i
-                ),
-                Instance("BUFG", i_I=clk_i, o_O=clk_i_bufg),
+                )
             ]
+            if use_bufr:
+                clk_i_bufr = Signal()
+                self.specials += [
+                    Instance("BUFR", i_I=clk_i, o_O=clk_i_bufr),
+                    Instance("BUFG", i_I=clk_i_bufr, o_O=clk_i_bufg),
+                ]
+            else:
+                self.specials += Instance("BUFG", i_I=clk_i, o_O=clk_i_bufg),
             self.comb += pll.refclk.eq(clk_i_bufg)
 
         # rx
@@ -239,7 +250,7 @@ class SERDES(Module):
             Instance("IDELAYE3",
                 p_CASCADE="NONE", p_UPDATE_MODE="ASYNC",p_REFCLK_FREQUENCY=200.0,
                 p_IS_CLK_INVERTED=0, p_IS_RST_INVERTED=0,
-                p_DELAY_FORMAT="COUNT", p_DELAY_SRC="IDATAIN",
+                p_DELAY_FORMAT="COUNT", p_DELAY_SRC="DATAIN",
                 p_DELAY_TYPE="VARIABLE", p_DELAY_VALUE=serdes_m_delay_value,
 
                 i_CLK=ClockSignal("serdes_div"),
@@ -250,7 +261,7 @@ class SERDES(Module):
                 i_INC=1, i_EN_VTC=0,
                 i_CE=0,
 
-                i_IDATAIN=serdes_m_i_nodelay, o_DATAOUT=serdes_m_i_delayed
+                i_DATAIN=serdes_m_i_nodelay, o_DATAOUT=serdes_m_i_delayed
             ),
             Instance("ISERDESE3",
                 p_DATA_WIDTH=8,
@@ -274,7 +285,7 @@ class SERDES(Module):
             Instance("IDELAYE3",
                 p_CASCADE="NONE", p_UPDATE_MODE="ASYNC",p_REFCLK_FREQUENCY=200.0,
                 p_IS_CLK_INVERTED=0, p_IS_RST_INVERTED=0,
-                p_DELAY_FORMAT="COUNT", p_DELAY_SRC="IDATAIN",
+                p_DELAY_FORMAT="COUNT", p_DELAY_SRC="DATAIN",
                 p_DELAY_TYPE="VARIABLE", p_DELAY_VALUE=serdes_s_idelay_value,
 
                 i_CLK=ClockSignal("serdes_div"),
@@ -285,7 +296,7 @@ class SERDES(Module):
                 i_INC=1, i_EN_VTC=0,
                 i_CE=0,
 
-                i_IDATAIN=~serdes_s_i_nodelay, o_DATAOUT=serdes_s_i_delayed
+                i_DATAIN=~serdes_s_i_nodelay, o_DATAOUT=serdes_s_i_delayed
             ),
             Instance("ISERDESE3",
                 p_DATA_WIDTH=8,
@@ -302,7 +313,7 @@ class SERDES(Module):
 
         self.comb += [
             self.rx_gearbox.i.eq(serdes_m_q),
-            self.rx_bitslip.value.eq(0), # FIXME
+            self.rx_bitslip.value.eq(self.rx_bitslip_value),
             self.rx_bitslip.i.eq(self.rx_gearbox.o),
             self.decoders[0].input.eq(self.rx_bitslip.o[:10]),
             self.decoders[1].input.eq(self.rx_bitslip.o[10:])

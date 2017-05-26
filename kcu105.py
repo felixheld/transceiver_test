@@ -14,6 +14,8 @@ from litex.soc.cores.uart import UARTWishboneBridge
 from transceiver.gth_ultrascale import GTHChannelPLL, GTH
 from transceiver.serdes_ultrascale import SERDESPLL, SERDES
 
+from litescope import LiteScopeAnalyzer
+
 
 class BaseSoC(SoCCore):
     def __init__(self, platform):
@@ -22,13 +24,16 @@ class BaseSoC(SoCCore):
             cpu_type=None,
             csr_data_width=32,
             with_uart=False,
-            ident="DRTIO GTX KCU105 Test Design",
+            ident="KCU105 SERDES Test Design",
             with_timer=False
         )
         self.submodules.crg = CRG(platform.request(platform.default_clk_name))
         self.add_cpu_or_bridge(UARTWishboneBridge(platform.request("serial"),
                                                   clk_freq, baudrate=115200))
         self.add_wb_master(self.cpu_or_bridge.wishbone)
+
+        self.crg.cd_sys.clk.attr.add("keep")
+        platform.add_period_constraint(self.crg.cd_sys.clk, 8.0)
 
 
 class GTHTestSoC(BaseSoC):
@@ -116,24 +121,24 @@ class GTHTestSoC(BaseSoC):
 
 serdes_io = [
     # cyusb3acc_005 fmc with loopback
-    ("master_serdes", 1,
+    ("master_serdes", 0,
         Subsignal("clk_p", Pins("LPC:LA20_P")), # g21
         Subsignal("clk_n", Pins("LPC:LA20_N")), # g22
         Subsignal("tx_p", Pins("LPC:LA22_P")), # g24
         Subsignal("tx_n", Pins("LPC:LA22_N")), # g25
         Subsignal("rx_p", Pins("LPC:LA11_P")), # h16
         Subsignal("rx_n", Pins("LPC:LA11_N")), # h17
-        IOStandard("LVCMOS25"),
+        IOStandard("LVDS"),
     ),
 
-    ("slave_serdes", 1,
+    ("slave_serdes", 0,
         Subsignal("clk_p", Pins("LPC:LA04_P")), # h10
         Subsignal("clk_n", Pins("LPC:LA04_P")), # h11
         Subsignal("tx_p", Pins("LPC:LA25_P")), # g27
         Subsignal("tx_n", Pins("LPC:LA25_N")), # g28
         Subsignal("rx_p", Pins("LPC:LA07_P")), # h13
         Subsignal("rx_n", Pins("LPC:LA07_N")), # h14
-        IOStandard("LVCMOS25"),
+        IOStandard("LVDS"),
     ),
 ]
 
@@ -155,9 +160,6 @@ class SERDESControl(Module, AutoCSR):
         self.tx_prbs_config = self._tx_prbs_config.storage
 
         self.rx_bitslip_value = self._rx_bitslip_value.storage
-        self.rx_delay_rst = self._rx_delay_rst.r & self._rx_delay_rst.re
-        self.rx_delay_inc = self._rx_delay_inc.storage
-        self.rx_delay_ce = self._rx_delay_ce.r & self._rx_delay_ce.re
 
         self.rx_prbs_config = self._rx_prbs_config.storage
         self.rx_prbs_errors = self._rx_prbs_errors.status
@@ -170,7 +172,7 @@ class SERDESTestSoC(BaseSoC):
         "analyzer": 22
     }
     csr_map.update(BaseSoC.csr_map)
-    def __init__(self, platform, analyzer=None):
+    def __init__(self, platform, analyzer="master"):
         BaseSoC.__init__(self, platform)
 
         # master
@@ -182,14 +184,11 @@ class SERDESTestSoC(BaseSoC):
         master_pads = platform.request("master_serdes")
         self.submodules.master_serdes = master_serdes = SERDES(
             master_pll, master_pads, mode="master")
-        self.comb += master_serdes.tx_produce_square_wave.eq(platform.request("user_sw", 0))
+        self.comb += master_serdes.tx_produce_square_wave.eq(platform.request("user_dip_btn", 0))
         self.submodules.master_serdes_control = master_serdes_control = SERDESControl()
         self.comb += [
             master_serdes.tx_prbs_config.eq(master_serdes_control.tx_prbs_config),
             master_serdes.rx_bitslip_value.eq(master_serdes_control.rx_bitslip_value),
-            master_serdes.rx_delay_rst.eq(master_serdes_control.rx_delay_rst),
-            master_serdes.rx_delay_inc.eq(master_serdes_control.rx_delay_inc),
-            master_serdes.rx_delay_ce.eq(master_serdes_control.rx_delay_ce),
             master_serdes.rx_prbs_config.eq(master_serdes_control.rx_prbs_config),
             master_serdes_control.rx_prbs_errors.eq(master_serdes.rx_prbs_errors)
         ]
@@ -233,13 +232,12 @@ class SERDESTestSoC(BaseSoC):
         # slave
 
         slave_pll = SERDESPLL(125e6, 1.25e9)
-        self.comb += slave_pll.refclk.eq(self.crg.cd_clk125.clk)
         self.submodules += slave_pll
 
         slave_pads = platform.request("slave_serdes", 0)
         self.submodules.slave_serdes = slave_serdes = SERDES(
             slave_pll, slave_pads, mode="slave")
-        self.comb += slave_serdes.tx_produce_square_wave.eq(platform.request("user_sw", 1))
+        self.comb += slave_serdes.tx_produce_square_wave.eq(platform.request("user_dip_btn", 1))
         if hasattr(slave_pads, "txen"):
             self.comb += slave_pads.txen.eq(1) # hdmi specific to enable link
 
@@ -247,9 +245,6 @@ class SERDESTestSoC(BaseSoC):
         self.comb += [
             slave_serdes.tx_prbs_config.eq(slave_serdes_control.tx_prbs_config),
             slave_serdes.rx_bitslip_value.eq(slave_serdes_control.rx_bitslip_value),
-            slave_serdes.rx_delay_rst.eq(slave_serdes_control.rx_delay_rst),
-            slave_serdes.rx_delay_inc.eq(slave_serdes_control.rx_delay_inc),
-            slave_serdes.rx_delay_ce.eq(slave_serdes_control.rx_delay_ce),
             slave_serdes.rx_prbs_config.eq(slave_serdes_control.rx_prbs_config),
             slave_serdes_control.rx_prbs_errors.eq(slave_serdes.rx_prbs_errors)
         ]
@@ -337,8 +332,8 @@ class SERDESTestSoC(BaseSoC):
 def main():
     platform = kcu105.Platform()
     platform.add_extension(serdes_io)
-    soc = GTHTestSoC(platform)
-    #soc = SERDESTestSoC(platform)
+    #soc = GTHTestSoC(platform)
+    soc = SERDESTestSoC(platform)
     builder = Builder(soc, output_dir="build_kcu105", csr_csv="test/csr.csv")
     builder.build()
 
