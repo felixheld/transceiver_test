@@ -7,10 +7,10 @@ wb.open()
 
 # # #
 
-master_serdes_rx_bitslip = 16
-master_serdes_rx_delay = 1
+master_serdes_rx_bitslip = 11
+master_serdes_rx_delay = 8
 
-slave_serdes_rx_bitslip = 13
+slave_serdes_rx_bitslip = 11
 slave_serdes_rx_delay = 1
 
 prbs_test = False

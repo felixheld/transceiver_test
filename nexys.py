@@ -163,7 +163,7 @@ class SERDESTestSoC(BaseSoC):
         "analyzer": 22
     }
     csr_map.update(BaseSoC.csr_map)
-    def __init__(self, platform, medium="fmc", analyzer="slave"):
+    def __init__(self, platform, medium="fmc", analyzer="master"):
         BaseSoC.__init__(self, platform)
 
         # master
