@@ -43,7 +43,7 @@ serdes_io = [
         Subsignal("tx_n", Pins("LPC:LA22_N")), # g25
         Subsignal("rx_p", Pins("LPC:LA11_P")), # h16
         Subsignal("rx_n", Pins("LPC:LA11_N")), # h17
-        IOStandard("LVCMOS25"),
+        IOStandard("LVDS_25"),
     ),
 
     ("slave_serdes", 1,
@@ -53,7 +53,7 @@ serdes_io = [
         Subsignal("tx_n", Pins("LPC:LA25_N")), # g28
         Subsignal("rx_p", Pins("LPC:LA07_P")), # h13
         Subsignal("rx_n", Pins("LPC:LA07_N")), # h14
-        IOStandard("LVCMOS25"),
+        IOStandard("LVDS_25"),
     ),
 ]
 
@@ -163,7 +163,7 @@ class SERDESTestSoC(BaseSoC):
         "analyzer": 22
     }
     csr_map.update(BaseSoC.csr_map)
-    def __init__(self, platform, medium="hdmi", analyzer=None):
+    def __init__(self, platform, medium="fmc", analyzer="slave"):
         BaseSoC.__init__(self, platform)
 
         # master
@@ -329,8 +329,9 @@ class SERDESTestSoC(BaseSoC):
             self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 512, cd="slave_serdes_rtio")
 
 
-        # we are running the PLLE2_BASE out of spec..., avoid error
-        platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks PDRC-43]")
+        # fmc
+        if medium == "fmc":
+            platform.add_platform_command("set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets slave_serdes_clk_i")
 
     def do_exit(self, vns):
         if hasattr(self, "analyzer"):

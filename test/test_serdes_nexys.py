@@ -10,14 +10,14 @@ wb.open()
 master_serdes_rx_bitslip = 16
 master_serdes_rx_delay = 1
 
-slave_serdes_rx_bitslip = 18
-slave_serdes_rx_delay = 0
+slave_serdes_rx_bitslip = 13
+slave_serdes_rx_delay = 1
 
-prbs_test = True
-prbs_pattern = 0b11
+prbs_test = False
+prbs_pattern = 0b01
 prbs_loop = True
 
-analyzer_test = False
+analyzer_test = True
 
 # # #
 

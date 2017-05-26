@@ -217,6 +217,7 @@ class SERDES(Module):
         # rx clock
         if mode == "slave":
             clk_i = Signal()
+            clk_i_bufr = Signal()
             clk_i_bufg = Signal()
             self.specials += [
                 Instance("IBUFDS",
@@ -224,7 +225,8 @@ class SERDES(Module):
                     i_IB=pads.clk_n,
                     o_O=clk_i
                 ),
-                Instance("BUFG", i_I=clk_i, o_O=clk_i_bufg),
+                Instance("BUFR", i_I=clk_i, o_O=clk_i_bufr),
+                Instance("BUFG", i_I=clk_i_bufr, o_O=clk_i_bufg),
             ]
             self.comb += pll.refclk.eq(clk_i_bufg)
 
