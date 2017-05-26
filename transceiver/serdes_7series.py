@@ -347,7 +347,7 @@ class SERDES(Module):
             self.rx_prbs31.i.eq(self.rx_gearbox.o[::-1])
         ]
 
-        rx_prbs_config = Signal()
+        rx_prbs_config = Signal(2)
         self.specials += MultiReg(self.rx_prbs_config, rx_prbs_config, "rtio")
         self.sync.rtio += [
             If(rx_prbs_config == 0,
