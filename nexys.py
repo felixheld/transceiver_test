@@ -128,7 +128,7 @@ class BaseSoC(SoCCore):
         self.add_wb_master(self.cpu_or_bridge.wishbone)
 
         self.crg.cd_sys.clk.attr.add("keep")
-        platform.add_period_constraint(self.crg.cd_sys.clk, 10.0),
+        platform.add_period_constraint(self.crg.cd_sys.clk, 10.0)
 
 
 class SERDESControl(Module, AutoCSR):
@@ -163,7 +163,7 @@ class SERDESTestSoC(BaseSoC):
         "analyzer": 22
     }
     csr_map.update(BaseSoC.csr_map)
-    def __init__(self, platform, medium="fmc", analyzer="master"):
+    def __init__(self, platform, medium="hdmi", analyzer=None):
         BaseSoC.__init__(self, platform)
 
         # master

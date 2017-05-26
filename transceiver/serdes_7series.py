@@ -215,19 +215,26 @@ class SERDES(Module):
         ]
 
         # rx clock
+        use_bufr = False
         if mode == "slave":
             clk_i = Signal()
-            clk_i_bufr = Signal()
+
             clk_i_bufg = Signal()
             self.specials += [
                 Instance("IBUFDS",
                     i_I=pads.clk_p,
                     i_IB=pads.clk_n,
                     o_O=clk_i
-                ),
-                Instance("BUFR", i_I=clk_i, o_O=clk_i_bufr),
-                Instance("BUFG", i_I=clk_i_bufr, o_O=clk_i_bufg),
+                )
             ]
+            if use_bufr:
+                clk_i_bufr = Signal()
+                self.specials += [
+                    Instance("BUFR", i_I=clk_i, o_O=clk_i_bufr),
+                    Instance("BUFG", i_I=clk_i_bufr, o_O=clk_i_bufg),
+                ]
+            else:
+                self.specials += Instance("BUFG", i_I=clk_i, o_O=clk_i_bufg),
             self.comb += pll.refclk.eq(clk_i_bufg)
 
         # rx
