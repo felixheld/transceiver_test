@@ -1,8 +1,11 @@
 from litex.gen import *
 from litex.gen.genlib.resetsync import AsyncResetSynchronizer
-from litex.gen.genlib.cdc import Gearbox
+from litex.gen.genlib.cdc import MultiReg, Gearbox
 from litex.gen.genlib.misc import BitSlip
+
 from litex.soc.cores.code_8b10b import Encoder, Decoder
+
+from transceiver.prbs import *
 
 
 class SERDESPLL(Module):
@@ -101,7 +104,14 @@ class PhaseDetector(Module):
 
 class SERDES(Module):
     def __init__(self, pll, pads, mode="master"):
-        self.produce_square_wave = Signal()
+        self.tx_prbs_config = Signal(2)
+        self.tx_produce_square_wave = Signal()
+
+        self.rx_prbs_config = Signal(2)
+        self.rx_prbs_errors = Signal(32)
+
+        # # #
+
         self.submodules.encoder = ClockDomainsRenamer("rtio")(
             Encoder(2, True))
         self.decoders = [ClockDomainsRenamer("rtio")(
@@ -152,14 +162,22 @@ class SERDES(Module):
             ]
 
         # tx
+        self.submodules.tx_prbs7 = ClockDomainsRenamer("rtio")(PRBS7Generator(20))
+        self.submodules.tx_prbs15 = ClockDomainsRenamer("rtio")(PRBS15Generator(20))
+        self.submodules.tx_prbs31 = ClockDomainsRenamer("rtio")(PRBS31Generator(20))
         self.submodules.tx_gearbox = Gearbox(20, "rtio", 8, "serdes_div")
         self.comb += \
-            If(self.produce_square_wave,
+            If(self.tx_produce_square_wave,
                 # square wave @ linerate/20 for scope observation
                 self.tx_gearbox.i.eq(0b11111111110000000000)
+            ).Elif(self.tx_prbs_config == 0b01,
+                self.tx_gearbox.i.eq(self.tx_prbs7.o[::-1])
+            ).Elif(self.tx_prbs_config == 0b10,
+                self.tx_gearbox.i.eq(self.tx_prbs15.o[::-1])
+            ).Elif(self.tx_prbs_config == 0b11,
+                self.tx_gearbox.i.eq(self.tx_prbs31.o[::-1])
             ).Else(
-                self.tx_gearbox.i.eq(Cat(self.encoder.output[0],
-                                         self.encoder.output[1]))
+                self.tx_gearbox.i.eq(Cat(*[self.encoder.output[i] for i in range(2)]))
             )
 
         serdes_o = Signal()
@@ -288,4 +306,29 @@ class SERDES(Module):
             self.rx_bitslip.i.eq(self.rx_gearbox.o),
             self.decoders[0].input.eq(self.rx_bitslip.o[:10]),
             self.decoders[1].input.eq(self.rx_bitslip.o[10:])
+        ]
+
+        self.submodules.rx_prbs7 = ClockDomainsRenamer("rtio")(PRBS7Checker(20))
+        self.submodules.rx_prbs15 = ClockDomainsRenamer("rtio")(PRBS15Checker(20))
+        self.submodules.rx_prbs31 = ClockDomainsRenamer("rtio")(PRBS31Checker(20))
+        self.comb += [
+            self.rx_prbs7.i.eq(self.rx_gearbox.o[::-1]),
+            self.rx_prbs15.i.eq(self.rx_gearbox.o[::-1]),
+            self.rx_prbs31.i.eq(self.rx_gearbox.o[::-1])
+        ]
+
+        rx_prbs_config = Signal(2)
+        self.specials += MultiReg(self.rx_prbs_config, rx_prbs_config, "rtio")
+        self.sync.rtio += [
+            If(rx_prbs_config == 0,
+                self.rx_prbs_errors.eq(0)
+            ).Elif(self.rx_prbs_errors != (2**32-1),
+                If(rx_prbs_config == 0b01,
+                    self.rx_prbs_errors.eq(self.rx_prbs_errors + (self.rx_prbs7.errors != 0))
+                ).Elif(rx_prbs_config == 0b10,
+                    self.rx_prbs_errors.eq(self.rx_prbs_errors + (self.rx_prbs15.errors != 0))
+                ).Elif(rx_prbs_config == 0b11,
+                    self.rx_prbs_errors.eq(self.rx_prbs_errors + (self.rx_prbs31.errors != 0))
+                )
+            )
         ]
