@@ -75,11 +75,7 @@ class GTH(Module):
     def __init__(self, cpll, tx_pads, rx_pads, sys_clk_freq,
                  clock_aligner=True, internal_loopback=False,
                  tx_polarity=0, rx_polarity=0):
-        self.tx_prbs_config = Signal(2)
         self.tx_produce_square_wave = Signal()
-
-        self.rx_prbs_config = Signal(2)
-        self.rx_prbs_errors = Signal(32)
 
         # # #
 
@@ -290,31 +286,11 @@ class GTH(Module):
         ]
 
         # rx data and prbs
-        self.submodules.rx_prbs7 = ClockDomainsRenamer("rtio_rx")(PRBS7Checker(20))
-        self.submodules.rx_prbs15 = ClockDomainsRenamer("rtio_rx")(PRBS15Checker(20))
-        self.submodules.rx_prbs31 = ClockDomainsRenamer("rtio_rx")(PRBS31Checker(20))
+        self.submodules.rx_prbs = ClockDomainsRenamer("rtio_rx")(PRBSRX(20, True))
         self.comb += [
             self.decoders[0].input.eq(rxdata[:10]),
             self.decoders[1].input.eq(rxdata[10:]),
-            self.rx_prbs7.i.eq(rxdata[::-1]),
-            self.rx_prbs15.i.eq(rxdata[::-1]),
-            self.rx_prbs31.i.eq(rxdata[::-1])
-        ]
-
-        rx_prbs_config = Signal(2)
-        self.specials += MultiReg(self.rx_prbs_config, rx_prbs_config, "rtio_rx")
-        self.sync.rtio_rx += [
-            If(rx_prbs_config == 0,
-                self.rx_prbs_errors.eq(0)
-            ).Elif(self.rx_prbs_errors != (2**32-1),
-                If(rx_prbs_config == 0b01,
-                    self.rx_prbs_errors.eq(self.rx_prbs_errors + (self.rx_prbs7.errors != 0))
-                ).Elif(rx_prbs_config == 0b10,
-                    self.rx_prbs_errors.eq(self.rx_prbs_errors + (self.rx_prbs15.errors != 0))
-                ).Elif(rx_prbs_config == 0b11,
-                    self.rx_prbs_errors.eq(self.rx_prbs_errors + (self.rx_prbs31.errors != 0))
-                )
-            )
+            self.rx_prbs.i.eq(rxdata)
         ]
 
         # clock alignment

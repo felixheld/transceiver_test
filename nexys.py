@@ -181,13 +181,13 @@ class SERDESTestSoC(BaseSoC):
         self.comb += master_serdes.tx_produce_square_wave.eq(platform.request("user_sw", 0))
         self.submodules.master_serdes_control = master_serdes_control = SERDESControl()
         self.comb += [
-            master_serdes.tx_prbs_config.eq(master_serdes_control.tx_prbs_config),
+            master_serdes.tx_prbs.config.eq(master_serdes_control.tx_prbs_config),
             master_serdes.rx_bitslip_value.eq(master_serdes_control.rx_bitslip_value),
             master_serdes.rx_delay_rst.eq(master_serdes_control.rx_delay_rst),
             master_serdes.rx_delay_inc.eq(master_serdes_control.rx_delay_inc),
             master_serdes.rx_delay_ce.eq(master_serdes_control.rx_delay_ce),
-            master_serdes.rx_prbs_config.eq(master_serdes_control.rx_prbs_config),
-            master_serdes_control.rx_prbs_errors.eq(master_serdes.rx_prbs_errors)
+            master_serdes.rx_prbs.config.eq(master_serdes_control.rx_prbs_config),
+            master_serdes_control.rx_prbs_errors.eq(master_serdes.rx_prbs.errors)
         ]
 
         master_serdes.cd_rtio.clk.attr.add("keep")
@@ -244,13 +244,13 @@ class SERDESTestSoC(BaseSoC):
 
         self.submodules.slave_serdes_control = slave_serdes_control = SERDESControl()
         self.comb += [
-            slave_serdes.tx_prbs_config.eq(slave_serdes_control.tx_prbs_config),
+            slave_serdes.tx_prbs.config.eq(slave_serdes_control.tx_prbs_config),
             slave_serdes.rx_bitslip_value.eq(slave_serdes_control.rx_bitslip_value),
             slave_serdes.rx_delay_rst.eq(slave_serdes_control.rx_delay_rst),
             slave_serdes.rx_delay_inc.eq(slave_serdes_control.rx_delay_inc),
             slave_serdes.rx_delay_ce.eq(slave_serdes_control.rx_delay_ce),
-            slave_serdes.rx_prbs_config.eq(slave_serdes_control.rx_prbs_config),
-            slave_serdes_control.rx_prbs_errors.eq(slave_serdes.rx_prbs_errors)
+            slave_serdes.rx_prbs.config.eq(slave_serdes_control.rx_prbs_config),
+            slave_serdes_control.rx_prbs_errors.eq(slave_serdes.rx_prbs.errors)
         ]
 
         slave_serdes.cd_rtio.clk.attr.add("keep")

@@ -48,7 +48,7 @@ class PRBSTX(Module):
 
         # # #
 
-        config = Signal()
+        config = Signal(2)
 
         # generators
         self.specials += MultiReg(self.config, config)
@@ -114,3 +114,47 @@ class PRBS15Checker(PRBSChecker):
 class PRBS31Checker(PRBSChecker):
     def __init__(self, n_out):
         PRBSChecker.__init__(self, n_out, n_state=31, taps=[27, 30])
+
+
+class PRBSRX(Module):
+    def __init__(self, width, reverse=False):
+        self.i = Signal(width)
+        self.config = Signal(2)
+        self.errors = Signal(32)
+
+        # # #
+
+        config = Signal(2)
+
+        # optional bits reversing
+        prbs_data = self.i
+        if reverse:
+            new_prbs_data = Signal(width)
+            self.comb += new_prbs_data.eq(prbs_data[::-1])
+            prbs_data = new_prbs_data
+
+        # checkers
+        self.specials += MultiReg(self.config, config)
+        prbs7 = PRBS7Checker(width)
+        prbs15 = PRBS15Checker(width)
+        prbs31 = PRBS31Checker(width)
+        self.submodules += prbs7, prbs15, prbs31
+        self.comb += [
+            prbs7.i.eq(prbs_data),
+            prbs15.i.eq(prbs_data),
+            prbs31.i.eq(prbs_data)
+        ]
+
+        # errors count
+        self.sync += \
+            If(config == 0,
+                self.errors.eq(0)
+            ).Elif(self.errors != (2**32-1),
+                If(config == 0b01,
+                    self.errors.eq(self.errors + (prbs7.errors != 0))
+                ).Elif(config == 0b10,
+                    self.errors.eq(self.errors + (prbs15.errors != 0))
+                ).Elif(config == 0b11,
+                    self.errors.eq(self.errors + (prbs31.errors != 0))
+                )
+            )
