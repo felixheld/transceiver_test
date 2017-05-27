@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
+import sys
 
 from litex.gen import *
 from litex.boards.platforms import kc705
+from litex.build.xilinx import VivadoProgrammer
 
 from litex.gen.genlib.io import CRG
 
@@ -19,7 +21,7 @@ class BaseSoC(SoCCore):
             cpu_type=None,
             csr_data_width=32,
             with_uart=False,
-            ident="DRTIO GTX KC705 Test Design",
+            ident="KC705 Transceiver Test Design",
             with_timer=False
         )
         self.submodules.crg = CRG(platform.request(platform.default_clk_name))
@@ -113,7 +115,13 @@ class GTXTestSoC(SoCCore):
 
 def main():
     platform = kc705.Platform()
-    soc = GTXTestSoC(platform)
+    if len(sys.argv) < 2:
+        print("missing target (base or gtx)")
+        exit()
+    if sys.argv[1] == "base":
+        soc = BaseSoC(platform)
+    elif sys.argv[1] == "gtx":
+        soc = GTXTestSoC(platform)
     builder = Builder(soc, output_dir="build_kc705", csr_csv="test/csr.csv")
     builder.build()
 

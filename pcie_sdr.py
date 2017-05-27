@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import sys
 
 from litex.gen import *
 from litex.build.generic_platform import *
@@ -59,7 +60,7 @@ class BaseSoC(SoCCore):
             cpu_type=None,
             csr_data_width=32,
             with_uart=False,
-            ident="DRTIO GTP PCIE SDR Test Design",
+            ident="PCIe SDR Transceiver Test Design",
             with_timer=False
         )
         self.submodules.crg = CRG(self.sys_clk)
@@ -174,7 +175,13 @@ class GTPTestSoC(BaseSoC):
 
 def main():
     platform = Platform()
-    soc = GTPTestSoC(platform)
+    if len(sys.argv) < 2:
+        print("missing target (base or gtp)")
+        exit()
+    if sys.argv[1] == "base":
+        soc = BaseSoC(platform)
+    elif sys.argv[1] == "gtp":
+        soc = GTPTestSoC(platform)
     builder = Builder(soc, output_dir="build_pcie_sdr", csr_csv="test/csr.csv")
     vns = builder.build()
     soc.do_exit(vns)

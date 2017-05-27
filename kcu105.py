@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import sys
 
 from litex.gen import *
 from litex.soc.interconnect.csr import *
@@ -24,7 +25,7 @@ class BaseSoC(SoCCore):
             cpu_type=None,
             csr_data_width=32,
             with_uart=False,
-            ident="KCU105 SERDES Test Design",
+            ident="Transceiver Test Design",
             with_timer=False
         )
         self.submodules.crg = CRG(platform.request(platform.default_clk_name))
@@ -402,7 +403,7 @@ class SERDESTestSoC(BaseSoC):
                 master_serdes.decoders[1].d,
                 master_serdes.decoders[1].k,
 
-                master_serdes.rx_prbs_errors,
+                master_serdes.rx_prbs.errors,
             ]
             self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 512, cd="master_serdes_rtio")
 
@@ -422,7 +423,7 @@ class SERDESTestSoC(BaseSoC):
                 slave_serdes.decoders[1].d,
                 slave_serdes.decoders[1].k,
 
-                slave_serdes.rx_prbs_errors,
+                slave_serdes.rx_prbs.errors,
             ]
             self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 512, cd="slave_serdes_rtio")
 
@@ -434,9 +435,17 @@ class SERDESTestSoC(BaseSoC):
 def main():
     platform = kcu105.Platform()
     platform.add_extension(serdes_io)
-    #soc = GTHTestSoC(platform)
-    soc = MultiGTHTestSoC(platform)
-    #soc = SERDESTestSoC(platform)
+    if len(sys.argv) < 2:
+        print("missing target (base or gth or multigth or serdes)")
+        exit()
+    if sys.argv[1] == "base":
+        soc = BaseSoC(platform)
+    elif sys.argv[1] == "gth":
+        soc = GTHTestSoC(platform)
+    elif sys.argv[1] == "multigth":
+        soc = MultiGTHTestSoC(platform)
+    elif sys.argv[1] == "serdes":
+        soc = SERDESTestSoC(platform)
     builder = Builder(soc, output_dir="build_kcu105", csr_csv="test/csr.csv")
     builder.build()
 
