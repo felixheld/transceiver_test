@@ -11,7 +11,7 @@ from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
 from litex.soc.cores.uart import UARTWishboneBridge
 
-from transceiver.gth_ultrascale import GTHChannelPLL, GTH
+from transceiver.gth_ultrascale import GTHChannelPLL, GTH, MultiGTH
 from transceiver.serdes_ultrascale import SERDESPLL, SERDES
 
 from litescope import LiteScopeAnalyzer
@@ -115,6 +115,110 @@ class GTHTestSoC(BaseSoC):
         rtio_rx_counter = Signal(32)
         self.sync.rtio_rx += rtio_rx_counter.eq(rtio_rx_counter + 1)
         self.comb += platform.request("user_led", 6).eq(rtio_rx_counter[26])
+
+
+multigt_io = [
+    ("sfps_tx", 0,
+        Subsignal("p", Pins("U4 W4")),
+        Subsignal("n", Pins("U3 W3"))
+    ),
+    ("sfps_rx", 0,
+        Subsignal("p", Pins("T2 V2")),
+        Subsignal("n", Pins("T1 V1"))
+    ),
+    ("sfps_tx_disable_n", 0, Pins("AL8 D28"), IOStandard("LVCMOS18")),
+]
+
+class MultiGTHTestSoC(BaseSoC):
+    def __init__(self, platform):
+        BaseSoC.__init__(self, platform)
+        platform.add_extension(multigt_io)
+
+        # 125MHz clock -> user_sma --> user_sma_mgt_refclk
+        user_sma_clock_pads = platform.request("user_sma_clock")
+        user_sma_clock = Signal()
+        self.specials += [
+            Instance("ODDRE1",
+                i_D1=0, i_D2=1, i_SR=0,
+                i_C=ClockSignal(),
+                o_Q=user_sma_clock),
+            Instance("OBUFDS",
+                i_I=user_sma_clock,
+                o_O=user_sma_clock_pads.p,
+                o_OB=user_sma_clock_pads.n)
+        ]
+
+        refclk = Signal()
+        refclk_pads = platform.request("user_sma_mgt_refclk")
+        self.specials += [
+            Instance("IBUFDS_GTE3",
+                i_CEB=0,
+                i_I=refclk_pads.p,
+                i_IB=refclk_pads.n,
+                o_O=refclk)
+        ]
+
+        cpll = GTHChannelPLL(refclk, 125e6, 1.25e9)
+        print(cpll)
+        self.submodules += cpll
+
+        self.comb += platform.request("sfps_tx_disable_n").eq(0b11)
+        tx_pads = platform.request("sfps_tx")
+        rx_pads = platform.request("sfps_rx")
+        mgth = MultiGTH(cpll, tx_pads, rx_pads, self.clk_freq,
+            clock_aligner=True, internal_loopback=False)
+        self.submodules += mgth
+
+        counter = Signal(32)
+        self.sync.gth0_rtio += counter.eq(counter + 1)
+
+        self.comb += [
+            mgth.encoders[0].k.eq(1),
+            mgth.encoders[0].d.eq((5 << 5) | 28),
+            mgth.encoders[1].k.eq(0),
+            mgth.encoders[1].d.eq(counter[26:]),
+            mgth.encoders[2].k.eq(1),
+            mgth.encoders[2].d.eq((5 << 5) | 28),
+            mgth.encoders[3].k.eq(0),
+            mgth.encoders[3].d.eq(counter[26:]),
+        ]
+
+        self.comb += platform.request("user_led", 4).eq(mgth.rx_ready)
+        led_mode = platform.request("user_dip_btn", 0)
+        for i in range(4):
+            user_led = platform.request("user_led", i)
+            self.comb += \
+                If(led_mode,
+                    user_led.eq(mgth.decoders[3].d[i])
+                ).Else(
+                    user_led.eq(mgth.decoders[1].d[i])
+                )
+        for i in range(mgth.nlanes):
+            gth = mgth.gths[i]
+            gth.cd_rtio.clk.attr.add("keep")
+            gth.cd_rtio_rx.clk.attr.add("keep")
+            platform.add_period_constraint(gth.cd_rtio.clk, 1e9/gth.rtio_clk_freq)
+            platform.add_period_constraint(gth.cd_rtio_rx.clk, 1e9/gth.rtio_clk_freq)
+            self.platform.add_false_path_constraints(
+                self.crg.cd_sys.clk,
+                gth.cd_rtio.clk,
+                gth.cd_rtio_rx.clk)
+
+        rtio_counter = Signal(32)
+        self.sync.gth0_rtio += rtio_counter.eq(rtio_counter + 1)
+        self.comb += platform.request("user_led", 7).eq(rtio_counter[26])
+
+        rtio_rx_counter0 = Signal(32)
+        rtio_rx_counter1 = Signal(32)
+        self.sync.gth0_rtio_rx += rtio_rx_counter0.eq(rtio_rx_counter0 + 1)
+        self.sync.gth1_rtio_rx += rtio_rx_counter0.eq(rtio_rx_counter1 + 1)
+        user_led = platform.request("user_led", 6)
+        self.comb += \
+            If(led_mode,
+                user_led.eq(rtio_rx_counter0[26])
+            ).Else(
+                user_led.eq(rtio_rx_counter1[26])
+            )
 
 
 serdes_io = [
@@ -330,7 +434,8 @@ class SERDESTestSoC(BaseSoC):
 def main():
     platform = kcu105.Platform()
     platform.add_extension(serdes_io)
-    soc = GTHTestSoC(platform)
+    #soc = GTHTestSoC(platform)
+    soc = MultiGTHTestSoC(platform)
     #soc = SERDESTestSoC(platform)
     builder = Builder(soc, output_dir="build_kcu105", csr_csv="test/csr.csv")
     builder.build()
