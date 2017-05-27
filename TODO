@@ -1,6 +1,9 @@
+high priority:
+- add multilanes wrapper
+- test TX/RX with multilanes (sfp0 and sfp1 on kcu105?)
+- add automatic input delay detection (serdes_7series and serdes_ultrascale)
+- add automatic bitslip detection (serdes_7series and serdes_ultrascale)
+
+low priority:
 - fix RX equalization on KC705 (GTX)? (not working with all SFP modules/cables/fiber)
 - cleanup init on Artix7 (GTP) (working but not following recommandations)
-- add auomatic phase detection or idelay on serdes_7series
-- add auomatic phase detection or idelay on serdes_ultrascale
-- add multilanes wrapper
-- test TX/RX with multilanes
