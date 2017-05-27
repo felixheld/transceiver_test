@@ -99,10 +99,8 @@ class GTHTestSoC(BaseSoC):
         for i in range(4):
             self.comb += platform.request("user_led", i).eq(gth.decoders[1].d[i])
 
-        self.crg.cd_sys.clk.attr.add("keep")
         gth.cd_rtio.clk.attr.add("keep")
         gth.cd_rtio_rx.clk.attr.add("keep")
-        platform.add_period_constraint(self.crg.cd_sys.clk, platform.default_clk_period)
         platform.add_period_constraint(gth.cd_rtio.clk, 1e9/gth.rtio_clk_freq)
         platform.add_period_constraint(gth.cd_rtio_rx.clk, 1e9/gth.rtio_clk_freq)
         self.platform.add_false_path_constraints(
@@ -332,8 +330,8 @@ class SERDESTestSoC(BaseSoC):
 def main():
     platform = kcu105.Platform()
     platform.add_extension(serdes_io)
-    #soc = GTHTestSoC(platform)
-    soc = SERDESTestSoC(platform)
+    soc = GTHTestSoC(platform)
+    #soc = SERDESTestSoC(platform)
     builder = Builder(soc, output_dir="build_kcu105", csr_csv="test/csr.csv")
     builder.build()
 

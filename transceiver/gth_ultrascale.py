@@ -1,11 +1,13 @@
 from litex.gen import *
+from litex.gen.genlib.cdc import MultiReg
 from litex.gen.genlib.resetsync import AsyncResetSynchronizer
 
-from litex.soc.interconnect.csr import *
 from litex.soc.cores.code_8b10b import Encoder, Decoder
 
 from transceiver.gth_ultrascale_init import GTHInit
 from transceiver.clock_aligner import BruteforceClockAligner
+
+from transceiver.prbs import *
 
 
 class GTHChannelPLL(Module):
@@ -74,7 +76,14 @@ class GTH(Module):
     def __init__(self, cpll, tx_pads, rx_pads, sys_clk_freq,
                  clock_aligner=True, internal_loopback=False,
                  tx_polarity=0, rx_polarity=0):
-        self.produce_square_wave = Signal()
+        self.tx_prbs_config = Signal(2)
+        self.tx_produce_square_wave = Signal()
+
+        self.rx_prbs_config = Signal(2)
+        self.rx_prbs_errors = Signal(32)
+
+        # # #
+
         self.submodules.encoder = ClockDomainsRenamer("rtio")(
             Encoder(2, True))
         self.decoders = [ClockDomainsRenamer("rtio_rx")(
@@ -246,6 +255,7 @@ class GTH(Module):
                 o_GTHTXN=tx_pads.n
             )
 
+        # tx clocking
         tx_reset_deglitched = Signal()
         tx_reset_deglitched.attr.add("no_retiming")
         self.sync += tx_reset_deglitched.eq(~tx_init.done)
@@ -257,6 +267,8 @@ class GTH(Module):
                 i_DIV=int(tx_bufg_div)-1),
             AsyncResetSynchronizer(self.cd_rtio, tx_reset_deglitched)
         ]
+
+        # rx clocking
         rx_reset_deglitched = Signal()
         rx_reset_deglitched.attr.add("no_retiming")
         self.sync.rtio += rx_reset_deglitched.eq(~rx_init.done)
@@ -266,18 +278,56 @@ class GTH(Module):
             AsyncResetSynchronizer(self.cd_rtio_rx, rx_reset_deglitched)
         ]
 
+        # tx data and prbs
+        tx_prbs_config = Signal(2)
+        self.specials += MultiReg(self.tx_prbs_config, tx_prbs_config, "rtio")
+        self.submodules.tx_prbs7 = ClockDomainsRenamer("rtio")(PRBS7Generator(20))
+        self.submodules.tx_prbs15 = ClockDomainsRenamer("rtio")(PRBS15Generator(20))
+        self.submodules.tx_prbs31 = ClockDomainsRenamer("rtio")(PRBS31Generator(20))
         self.comb += [
-             If(self.produce_square_wave,
+            If(self.tx_produce_square_wave,
                 # square wave @ linerate/20 for scope observation
                 txdata.eq(0b11111111110000000000)
+            ).Elif(tx_prbs_config == 0b01,
+                txdata.eq(self.tx_prbs7.o[::-1])
+            ).Elif(tx_prbs_config == 0b10,
+                txdata.eq(self.tx_prbs15.o[::-1])
+            ).Elif(tx_prbs_config == 0b11,
+                txdata.eq(self.tx_prbs31.o[::-1])
             ).Else(
-                txdata.eq(Cat(self.encoder.output[0],
-                              self.encoder.output[1]))
-            ),
-            self.decoders[0].input.eq(rxdata[:10]),
-            self.decoders[1].input.eq(rxdata[10:])
+                txdata.eq(Cat(*[self.encoder.output[i] for i in range(2)]))
+            )
         ]
 
+        # rx data and prbs
+        self.submodules.rx_prbs7 = ClockDomainsRenamer("rtio_rx")(PRBS7Checker(20))
+        self.submodules.rx_prbs15 = ClockDomainsRenamer("rtio_rx")(PRBS15Checker(20))
+        self.submodules.rx_prbs31 = ClockDomainsRenamer("rtio_rx")(PRBS31Checker(20))
+        self.comb += [
+            self.decoders[0].input.eq(rxdata[:10]),
+            self.decoders[1].input.eq(rxdata[10:]),
+            self.rx_prbs7.i.eq(rxdata[::-1]),
+            self.rx_prbs15.i.eq(rxdata[::-1]),
+            self.rx_prbs31.i.eq(rxdata[::-1])
+        ]
+
+        rx_prbs_config = Signal(2)
+        self.specials += MultiReg(self.rx_prbs_config, rx_prbs_config, "rtio_rx")
+        self.sync.rtio_rx += [
+            If(rx_prbs_config == 0,
+                self.rx_prbs_errors.eq(0)
+            ).Elif(self.rx_prbs_errors != (2**32-1),
+                If(rx_prbs_config == 0b01,
+                    self.rx_prbs_errors.eq(self.rx_prbs_errors + (self.rx_prbs7.errors != 0))
+                ).Elif(rx_prbs_config == 0b10,
+                    self.rx_prbs_errors.eq(self.rx_prbs_errors + (self.rx_prbs15.errors != 0))
+                ).Elif(rx_prbs_config == 0b11,
+                    self.rx_prbs_errors.eq(self.rx_prbs_errors + (self.rx_prbs31.errors != 0))
+                )
+            )
+        ]
+
+        # clock alignment
         if clock_aligner:
             clock_aligner = BruteforceClockAligner(0b0101111100, self.rtio_clk_freq)
             self.submodules += clock_aligner
@@ -288,5 +338,3 @@ class GTH(Module):
             ]
         else:
             self.comb += self.rx_ready.eq(rx_init.done)
-
-
