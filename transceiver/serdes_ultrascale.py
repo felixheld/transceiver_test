@@ -164,6 +164,8 @@ class SERDES(Module):
             ]
 
         # tx
+        tx_prbs_config = Signal(2)
+        self.specials += MultiReg(self.tx_prbs_config, tx_prbs_config, "rtio")
         self.submodules.tx_prbs7 = ClockDomainsRenamer("rtio")(PRBS7Generator(20))
         self.submodules.tx_prbs15 = ClockDomainsRenamer("rtio")(PRBS15Generator(20))
         self.submodules.tx_prbs31 = ClockDomainsRenamer("rtio")(PRBS31Generator(20))
@@ -172,11 +174,11 @@ class SERDES(Module):
             If(self.tx_produce_square_wave,
                 # square wave @ linerate/20 for scope observation
                 self.tx_gearbox.i.eq(0b11111111110000000000)
-            ).Elif(self.tx_prbs_config == 0b01,
+            ).Elif(tx_prbs_config == 0b01,
                 self.tx_gearbox.i.eq(self.tx_prbs7.o[::-1])
-            ).Elif(self.tx_prbs_config == 0b10,
+            ).Elif(tx_prbs_config == 0b10,
                 self.tx_gearbox.i.eq(self.tx_prbs15.o[::-1])
-            ).Elif(self.tx_prbs_config == 0b11,
+            ).Elif(tx_prbs_config == 0b11,
                 self.tx_gearbox.i.eq(self.tx_prbs31.o[::-1])
             ).Else(
                 self.tx_gearbox.i.eq(Cat(*[self.encoder.output[i] for i in range(2)]))
