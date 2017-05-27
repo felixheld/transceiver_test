@@ -37,22 +37,22 @@ serdes_io = [
     ),
     # cyusb3acc_005 fmc with loopback
     ("master_serdes", 1,
-        Subsignal("clk_p", Pins("LPC:LA20_P")), # g21
-        Subsignal("clk_n", Pins("LPC:LA20_N")), # g22
-        Subsignal("tx_p", Pins("LPC:LA22_P")), # g24
-        Subsignal("tx_n", Pins("LPC:LA22_N")), # g25
-        Subsignal("rx_p", Pins("LPC:LA11_P")), # h16
-        Subsignal("rx_n", Pins("LPC:LA11_N")), # h17
+        Subsignal("clk_p", Pins("LPC:LA20_P"), Misc("DIFF_TERM=TRUE")), # g21
+        Subsignal("clk_n", Pins("LPC:LA20_N"), Misc("DIFF_TERM=TRUE")), # g22
+        Subsignal("tx_p", Pins("LPC:LA22_P"), Misc("DIFF_TERM=TRUE")), # g24
+        Subsignal("tx_n", Pins("LPC:LA22_N"), Misc("DIFF_TERM=TRUE")), # g25
+        Subsignal("rx_p", Pins("LPC:LA11_P"), Misc("DIFF_TERM=TRUE")), # h16
+        Subsignal("rx_n", Pins("LPC:LA11_N"), Misc("DIFF_TERM=TRUE")), # h17
         IOStandard("LVDS_25"),
     ),
 
     ("slave_serdes", 1,
-        Subsignal("clk_p", Pins("LPC:LA04_P")), # h10
-        Subsignal("clk_n", Pins("LPC:LA04_P")), # h11
-        Subsignal("tx_p", Pins("LPC:LA25_P")), # g27
-        Subsignal("tx_n", Pins("LPC:LA25_N")), # g28
-        Subsignal("rx_p", Pins("LPC:LA07_P")), # h13
-        Subsignal("rx_n", Pins("LPC:LA07_N")), # h14
+        Subsignal("clk_p", Pins("LPC:LA04_P"), Misc("DIFF_TERM=TRUE")), # h10
+        Subsignal("clk_n", Pins("LPC:LA04_P"), Misc("DIFF_TERM=TRUE")), # h11
+        Subsignal("tx_p", Pins("LPC:LA25_P"), Misc("DIFF_TERM=TRUE")), # g27
+        Subsignal("tx_n", Pins("LPC:LA25_N"), Misc("DIFF_TERM=TRUE")), # g28
+        Subsignal("rx_p", Pins("LPC:LA07_P"), Misc("DIFF_TERM=TRUE")), # h13
+        Subsignal("rx_n", Pins("LPC:LA07_N"), Misc("DIFF_TERM=TRUE")), # h14
         IOStandard("LVDS_25"),
     ),
 ]
