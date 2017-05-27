@@ -305,23 +305,14 @@ class GTP(Module):
         ]
 
         # tx data and prbs
-        tx_prbs_config = Signal(2)
-        self.specials += MultiReg(self.tx_prbs_config, tx_prbs_config, "rtio")
-        self.submodules.tx_prbs7 = ClockDomainsRenamer("rtio")(PRBS7Generator(20))
-        self.submodules.tx_prbs15 = ClockDomainsRenamer("rtio")(PRBS15Generator(20))
-        self.submodules.tx_prbs31 = ClockDomainsRenamer("rtio")(PRBS31Generator(20))
+        self.submodules.tx_prbs = ClockDomainsRenamer("rtio")(PRBSTX(20, True))
         self.comb += [
+            self.tx_prbs.i.eq(Cat(*[self.encoder.output[i] for i in range(2)])),
             If(self.tx_produce_square_wave,
                 # square wave @ linerate/20 for scope observation
                 txdata.eq(0b11111111110000000000)
-            ).Elif(tx_prbs_config == 0b01,
-                txdata.eq(self.tx_prbs7.o[::-1])
-            ).Elif(tx_prbs_config == 0b10,
-                txdata.eq(self.tx_prbs15.o[::-1])
-            ).Elif(tx_prbs_config == 0b11,
-                txdata.eq(self.tx_prbs31.o[::-1])
             ).Else(
-                txdata.eq(Cat(*[self.encoder.output[i] for i in range(2)]))
+                txdata.eq(self.tx_prbs.o)
             )
         ]
 
