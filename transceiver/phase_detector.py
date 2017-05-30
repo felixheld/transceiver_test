@@ -43,7 +43,7 @@ class PhaseDetector(Module, AutoCSR):
 
         # find transition
         mdata_d = Signal(8)
-        self.sync.serdes_div += mdata_d.eq(self.mdata)
+        self.sync.serdes_2p5x += mdata_d.eq(self.mdata)
         self.comb += transition.eq(mdata_d != self.mdata)
 
 
@@ -62,7 +62,7 @@ class PhaseDetector(Module, AutoCSR):
             too_late.eq(lateness == (2**nbits - 1)),
             too_early.eq(lateness == 0)
         ]
-        self.sync.serdes_div += [
+        self.sync.serdes_2p5x += [
             If(reset_lateness,
                 lateness.eq(2**(nbits - 1))
             ).Elif(~too_late & ~too_early,
@@ -73,7 +73,7 @@ class PhaseDetector(Module, AutoCSR):
 
         # control / status cdc
         self.specials += MultiReg(Cat(too_late, too_early), self.status.status)
-        self.submodules.do_reset_lateness = PulseSynchronizer("sys", "serdes_div")
+        self.submodules.do_reset_lateness = PulseSynchronizer("sys", "serdes_2p5x")
         self.comb += [
             reset_lateness.eq(self.do_reset_lateness.o),
             self.do_reset_lateness.i.eq(self.reset.re)
