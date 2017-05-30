@@ -118,7 +118,7 @@ class GTPTestSoC(BaseSoC):
         self.submodules += gtp
 
         counter = Signal(32)
-        self.sync.rtio += counter.eq(counter + 1)
+        self.sync.tx += counter.eq(counter + 1)
 
         self.comb += [
             gtp.encoder.k[0].eq(1),
@@ -131,27 +131,27 @@ class GTPTestSoC(BaseSoC):
             self.comb += gtp.encoder.d[1].eq(counter[26:])
 
         self.crg.cd_sys.clk.attr.add("keep")
-        gtp.cd_rtio.clk.attr.add("keep")
-        gtp.cd_rtio_rx.clk.attr.add("keep")
+        gtp.cd_tx.clk.attr.add("keep")
+        gtp.cd_rx.clk.attr.add("keep")
         platform.add_period_constraint(self.crg.cd_sys.clk, 10)
-        platform.add_period_constraint(gtp.cd_rtio.clk, 1e9/gtp.rtio_clk_freq)
-        platform.add_period_constraint(gtp.cd_rtio_rx.clk, 1e9/gtp.rtio_clk_freq)
+        platform.add_period_constraint(gtp.cd_tx.clk, 1e9/gtp.tx_clk_freq)
+        platform.add_period_constraint(gtp.cd_rx.clk, 1e9/gtp.tx_clk_freq)
         self.platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
-            gtp.cd_rtio.clk,
-            gtp.cd_rtio_rx.clk)
+            gtp.cd_tx.clk,
+            gtp.cd_rx.clk)
 
-        rtio_counter_led = Signal()
-        rtio_counter = Signal(32)
-        self.sync.rtio += rtio_counter.eq(rtio_counter + 1)
-        self.comb += rtio_counter_led.eq(rtio_counter[26])
+        tx_counter_led = Signal()
+        tx_counter = Signal(32)
+        self.sync.tx += tx_counter.eq(tx_counter + 1)
+        self.comb += tx_counter_led.eq(tx_counter[26])
 
-        rtio_rx_counter_led = Signal()
-        rtio_rx_counter = Signal(32)
-        self.sync.rtio_rx += rtio_rx_counter.eq(rtio_rx_counter + 1)
-        self.comb += rtio_rx_counter_led.eq(rtio_rx_counter[26])
+        rx_counter_led = Signal()
+        rx_counter = Signal(32)
+        self.sync.rx += rx_counter.eq(rx_counter + 1)
+        self.comb += rx_counter_led.eq(rx_counter[26])
 
-        self.comb += platform.request("user_led", 0).eq(rtio_counter_led ^ rtio_rx_counter_led)
+        self.comb += platform.request("user_led", 0).eq(tx_counter_led ^ rx_counter_led)
 
         if with_analyzer:
             analyzer_signals = [
@@ -166,7 +166,7 @@ class GTPTestSoC(BaseSoC):
                 gtp.decoders[1].d,
                 gtp.decoders[1].k,
             ]
-            self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 2048, cd_ratio=2, cd="rtio")
+            self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 2048, cd_ratio=2, cd="tx")
 
     def do_exit(self, vns):
         if hasattr(self, "analyzer"):

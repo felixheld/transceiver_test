@@ -87,7 +87,7 @@ class GTHTestSoC(BaseSoC):
         self.submodules += gth
 
         counter = Signal(32)
-        self.sync.rtio += counter.eq(counter + 1)
+        self.sync.tx += counter.eq(counter + 1)
 
         self.comb += [
             gth.encoder.k[0].eq(1),
@@ -100,22 +100,22 @@ class GTHTestSoC(BaseSoC):
         for i in range(4):
             self.comb += platform.request("user_led", i).eq(gth.decoders[1].d[i])
 
-        gth.cd_rtio.clk.attr.add("keep")
-        gth.cd_rtio_rx.clk.attr.add("keep")
-        platform.add_period_constraint(gth.cd_rtio.clk, 1e9/gth.rtio_clk_freq)
-        platform.add_period_constraint(gth.cd_rtio_rx.clk, 1e9/gth.rtio_clk_freq)
+        gth.cd_tx.clk.attr.add("keep")
+        gth.cd_rx.clk.attr.add("keep")
+        platform.add_period_constraint(gth.cd_tx.clk, 1e9/gth.tx_clk_freq)
+        platform.add_period_constraint(gth.cd_rx.clk, 1e9/gth.tx_clk_freq)
         self.platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
-            gth.cd_rtio.clk,
-            gth.cd_rtio_rx.clk)
+            gth.cd_tx.clk,
+            gth.cd_rx.clk)
 
-        rtio_counter = Signal(32)
-        self.sync.rtio += rtio_counter.eq(rtio_counter + 1)
-        self.comb += platform.request("user_led", 7).eq(rtio_counter[26])
+        tx_counter = Signal(32)
+        self.sync.tx += tx_counter.eq(tx_counter + 1)
+        self.comb += platform.request("user_led", 7).eq(tx_counter[26])
 
-        rtio_rx_counter = Signal(32)
-        self.sync.rtio_rx += rtio_rx_counter.eq(rtio_rx_counter + 1)
-        self.comb += platform.request("user_led", 6).eq(rtio_rx_counter[26])
+        rx_counter = Signal(32)
+        self.sync.rx += rx_counter.eq(rx_counter + 1)
+        self.comb += platform.request("user_led", 6).eq(rx_counter[26])
 
 
 multigt_io = [
@@ -171,7 +171,7 @@ class MultiGTHTestSoC(BaseSoC):
         self.submodules += mgth
 
         counter = Signal(32)
-        self.sync.gth0_rtio += counter.eq(counter + 1)
+        self.sync.gth0_tx += counter.eq(counter + 1)
 
         self.comb += [
             mgth.encoders[0].k.eq(1),
@@ -196,29 +196,29 @@ class MultiGTHTestSoC(BaseSoC):
                 )
         for i in range(mgth.nlanes):
             gth = mgth.gths[i]
-            gth.cd_rtio.clk.attr.add("keep")
-            gth.cd_rtio_rx.clk.attr.add("keep")
-            platform.add_period_constraint(gth.cd_rtio.clk, 1e9/gth.rtio_clk_freq)
-            platform.add_period_constraint(gth.cd_rtio_rx.clk, 1e9/gth.rtio_clk_freq)
+            gth.cd_tx.clk.attr.add("keep")
+            gth.cd_rx.clk.attr.add("keep")
+            platform.add_period_constraint(gth.cd_tx.clk, 1e9/gth.tx_clk_freq)
+            platform.add_period_constraint(gth.cd_rx.clk, 1e9/gth.tx_clk_freq)
             self.platform.add_false_path_constraints(
                 self.crg.cd_sys.clk,
-                gth.cd_rtio.clk,
-                gth.cd_rtio_rx.clk)
+                gth.cd_tx.clk,
+                gth.cd_rx.clk)
 
-        rtio_counter = Signal(32)
-        self.sync.gth0_rtio += rtio_counter.eq(rtio_counter + 1)
-        self.comb += platform.request("user_led", 7).eq(rtio_counter[26])
+        tx_counter = Signal(32)
+        self.sync.gth0_tx += tx_counter.eq(tx_counter + 1)
+        self.comb += platform.request("user_led", 7).eq(tx_counter[26])
 
-        rtio_rx_counter0 = Signal(32)
-        rtio_rx_counter1 = Signal(32)
-        self.sync.gth0_rtio_rx += rtio_rx_counter0.eq(rtio_rx_counter0 + 1)
-        self.sync.gth1_rtio_rx += rtio_rx_counter0.eq(rtio_rx_counter1 + 1)
+        rx_counter0 = Signal(32)
+        rx_counter1 = Signal(32)
+        self.sync.gth0_rx += rx_counter0.eq(rx_counter0 + 1)
+        self.sync.gth1_rx += rx_counter0.eq(rx_counter1 + 1)
         user_led = platform.request("user_led", 6)
         self.comb += \
             If(led_mode,
-                user_led.eq(rtio_rx_counter0[26])
+                user_led.eq(rx_counter0[26])
             ).Else(
-                user_led.eq(rtio_rx_counter1[26])
+                user_led.eq(rx_counter1[26])
             )
 
 
