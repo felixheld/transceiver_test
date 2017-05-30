@@ -266,20 +266,20 @@ class SERDESTestSoC(BaseSoC):
         self.submodules.master_serdes = master_serdes = SERDES(
             master_pll, master_pads, mode="master")
 
-        master_serdes.cd_rtio.clk.attr.add("keep")
         master_serdes.cd_serdes.clk.attr.add("keep")
-        master_serdes.cd_serdes_div.clk.attr.add("keep")
-        platform.add_period_constraint(master_serdes.cd_rtio.clk, 16.0),
-        platform.add_period_constraint(master_serdes.cd_serdes.clk, 1.6),
-        platform.add_period_constraint(master_serdes.cd_serdes_div.clk, 6.4)
+        master_serdes.cd_serdes_10x.clk.attr.add("keep")
+        master_serdes.cd_serdes_2p5x.clk.attr.add("keep")
+        platform.add_period_constraint(master_serdes.cd_serdes.clk, 16.0),
+        platform.add_period_constraint(master_serdes.cd_serdes_10x.clk, 1.6),
+        platform.add_period_constraint(master_serdes.cd_serdes_2p5x.clk, 6.4)
         self.platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
-            master_serdes.cd_rtio.clk,
             master_serdes.cd_serdes.clk,
-            master_serdes.cd_serdes_div.clk)
+            master_serdes.cd_serdes_10x.clk,
+            master_serdes.cd_serdes_2p5x.clk)
 
         counter = Signal(32)
-        self.sync.master_serdes_rtio += counter.eq(counter + 1)
+        self.sync.master_serdes_serdes += counter.eq(counter + 1)
         self.comb += [
             master_serdes.encoder.d[0].eq(counter),
             master_serdes.encoder.d[1].eq(counter)
@@ -289,17 +289,17 @@ class SERDESTestSoC(BaseSoC):
         self.sync.sys += master_sys_counter.eq(master_sys_counter + 1)
         self.comb += platform.request("user_led", 0).eq(master_sys_counter[26])
 
-        master_rtio_counter = Signal(32)
-        self.sync.master_serdes_rtio += master_rtio_counter.eq(master_rtio_counter + 1)
-        self.comb += platform.request("user_led", 1).eq(master_rtio_counter[26])
-
-        master_serdes_div_counter = Signal(32)
-        self.sync.master_serdes_serdes_div += master_serdes_div_counter.eq(master_serdes_div_counter + 1)
-        self.comb += platform.request("user_led", 2).eq(master_serdes_div_counter[26])
-
         master_serdes_counter = Signal(32)
         self.sync.master_serdes_serdes += master_serdes_counter.eq(master_serdes_counter + 1)
-        self.comb += platform.request("user_led", 3).eq(master_serdes_counter[26])
+        self.comb += platform.request("user_led", 1).eq(master_serdes_counter[26])
+
+        master_serdes_2p5x_counter = Signal(32)
+        self.sync.master_serdes_serdes_2p5x += master_serdes_2p5x_counter.eq(master_serdes_2p5x_counter + 1)
+        self.comb += platform.request("user_led", 2).eq(master_serdes_2p5x_counter[26])
+
+        master_serdes_10x_counter = Signal(32)
+        self.sync.master_serdes_serdes_10x += master_serdes_10x_counter.eq(master_serdes_10x_counter + 1)
+        self.comb += platform.request("user_led", 3).eq(master_serdes_10x_counter[26])
 
 
         # slave
@@ -313,20 +313,20 @@ class SERDESTestSoC(BaseSoC):
         if hasattr(slave_pads, "txen"):
             self.comb += slave_pads.txen.eq(1) # hdmi specific to enable link
 
-        slave_serdes.cd_rtio.clk.attr.add("keep")
         slave_serdes.cd_serdes.clk.attr.add("keep")
-        slave_serdes.cd_serdes_div.clk.attr.add("keep")
-        platform.add_period_constraint(slave_serdes.cd_rtio.clk, 16.0),
-        platform.add_period_constraint(slave_serdes.cd_serdes.clk, 1.6),
-        platform.add_period_constraint(slave_serdes.cd_serdes_div.clk, 6.4)
+        slave_serdes.cd_serdes_10x.clk.attr.add("keep")
+        slave_serdes.cd_serdes_2p5x.clk.attr.add("keep")
+        platform.add_period_constraint(slave_serdes.cd_serdes.clk, 16.0),
+        platform.add_period_constraint(slave_serdes.cd_serdes_10x.clk, 1.6),
+        platform.add_period_constraint(slave_serdes.cd_serdes_2p5x.clk, 6.4)
         self.platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
-            slave_serdes.cd_rtio.clk,
             slave_serdes.cd_serdes.clk,
-            slave_serdes.cd_serdes_div.clk)
+            slave_serdes.cd_serdes_10x.clk,
+            slave_serdes.cd_serdes_2p5x.clk)
 
         counter = Signal(32)
-        self.sync.slave_serdes_rtio += counter.eq(counter + 1)
+        self.sync.slave_serdes_serdes += counter.eq(counter + 1)
         self.comb += [
             slave_serdes.encoder.d[0].eq(counter),
             slave_serdes.encoder.d[1].eq(counter)
@@ -336,17 +336,17 @@ class SERDESTestSoC(BaseSoC):
         self.sync.sys += slave_sys_counter.eq(slave_sys_counter + 1)
         self.comb += platform.request("user_led", 4).eq(slave_sys_counter[26])
 
-        slave_rtio_counter = Signal(32)
-        self.sync.slave_serdes_rtio += slave_rtio_counter.eq(slave_rtio_counter + 1)
-        self.comb += platform.request("user_led", 5).eq(slave_rtio_counter[26])
-
-        slave_serdes_div_counter = Signal(32)
-        self.sync.slave_serdes_serdes_div += slave_serdes_div_counter.eq(slave_serdes_div_counter + 1)
-        self.comb += platform.request("user_led", 6).eq(slave_serdes_div_counter[26])
-
         slave_serdes_counter = Signal(32)
         self.sync.slave_serdes_serdes += slave_serdes_counter.eq(slave_serdes_counter + 1)
-        self.comb += platform.request("user_led", 7).eq(slave_serdes_counter[26])
+        self.comb += platform.request("user_led", 5).eq(slave_serdes_counter[26])
+
+        slave_serdes_2p5x_counter = Signal(32)
+        self.sync.slave_serdes_serdes_2p5x += slave_serdes_2p5x_counter.eq(slave_serdes_2p5x_counter + 1)
+        self.comb += platform.request("user_led", 6).eq(slave_serdes_2p5x_counter[26])
+
+        slave_serdes_10x_counter = Signal(32)
+        self.sync.slave_serdes_serdes_10x += slave_serdes_10x_counter.eq(slave_serdes_10x_counter + 1)
+        self.comb += platform.request("user_led", 7).eq(slave_serdes_10x_counter[26])
 
         if analyzer == "master":
             analyzer_signals = [
@@ -364,7 +364,7 @@ class SERDESTestSoC(BaseSoC):
                 master_serdes.decoders[1].d,
                 master_serdes.decoders[1].k
             ]
-            self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 512, cd="master_serdes_rtio")
+            self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 512, cd="master_serdes_serdes")
 
         if analyzer == "slave":
             analyzer_signals = [
@@ -382,7 +382,7 @@ class SERDESTestSoC(BaseSoC):
                 slave_serdes.decoders[1].d,
                 slave_serdes.decoders[1].k
             ]
-            self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 512, cd="slave_serdes_rtio")
+            self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 512, cd="slave_serdes_serdes")
 
     def do_exit(self, vns):
         if hasattr(self, "analyzer"):
