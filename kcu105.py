@@ -246,36 +246,14 @@ serdes_io = [
 ]
 
 
-class SERDESControl(Module, AutoCSR):
-    def __init__(self):
-        self._tx_prbs_config = CSRStorage(2)
-
-        self._rx_bitslip_value = CSRStorage(5)
-        self._rx_delay_rst = CSR()
-        self._rx_delay_inc = CSRStorage()
-        self._rx_delay_ce = CSR()
-
-        self._rx_prbs_config = CSRStorage(2)
-        self._rx_prbs_errors = CSRStatus(32)
-
-        # # #
-
-        self.tx_prbs_config = self._tx_prbs_config.storage
-
-        self.rx_bitslip_value = self._rx_bitslip_value.storage
-
-        self.rx_prbs_config = self._rx_prbs_config.storage
-        self.rx_prbs_errors = self._rx_prbs_errors.status
-
-
 class SERDESTestSoC(BaseSoC):
     csr_map = {
-        "master_serdes_control": 20,
-        "slave_serdes_control": 21,
+        "master_serdes": 20,
+        "slave_serdes": 21,
         "analyzer": 22
     }
     csr_map.update(BaseSoC.csr_map)
-    def __init__(self, platform, analyzer="master"):
+    def __init__(self, platform, analyzer=None):
         BaseSoC.__init__(self, platform)
 
         # master
@@ -287,14 +265,6 @@ class SERDESTestSoC(BaseSoC):
         master_pads = platform.request("master_serdes")
         self.submodules.master_serdes = master_serdes = SERDES(
             master_pll, master_pads, mode="master")
-        self.comb += master_serdes.tx_produce_square_wave.eq(platform.request("user_dip_btn", 0))
-        self.submodules.master_serdes_control = master_serdes_control = SERDESControl()
-        self.comb += [
-            master_serdes.tx_prbs.config.eq(master_serdes_control.tx_prbs_config),
-            master_serdes.rx_bitslip_value.eq(master_serdes_control.rx_bitslip_value),
-            master_serdes.rx_prbs.config.eq(master_serdes_control.rx_prbs_config),
-            master_serdes_control.rx_prbs_errors.eq(master_serdes.rx_prbs.errors)
-        ]
 
         master_serdes.cd_rtio.clk.attr.add("keep")
         master_serdes.cd_serdes.clk.attr.add("keep")
@@ -340,17 +310,8 @@ class SERDESTestSoC(BaseSoC):
         slave_pads = platform.request("slave_serdes", 0)
         self.submodules.slave_serdes = slave_serdes = SERDES(
             slave_pll, slave_pads, mode="slave")
-        self.comb += slave_serdes.tx_produce_square_wave.eq(platform.request("user_dip_btn", 1))
         if hasattr(slave_pads, "txen"):
             self.comb += slave_pads.txen.eq(1) # hdmi specific to enable link
-
-        self.submodules.slave_serdes_control = slave_serdes_control = SERDESControl()
-        self.comb += [
-            slave_serdes.tx_prbs.config.eq(slave_serdes_control.tx_prbs_config),
-            slave_serdes.rx_bitslip_value.eq(slave_serdes_control.rx_bitslip_value),
-            slave_serdes.rx_prbs.config.eq(slave_serdes_control.rx_prbs_config),
-            slave_serdes_control.rx_prbs_errors.eq(slave_serdes.rx_prbs.errors)
-        ]
 
         slave_serdes.cd_rtio.clk.attr.add("keep")
         slave_serdes.cd_serdes.clk.attr.add("keep")
@@ -401,9 +362,7 @@ class SERDESTestSoC(BaseSoC):
                 master_serdes.decoders[0].k,
                 master_serdes.decoders[1].input,
                 master_serdes.decoders[1].d,
-                master_serdes.decoders[1].k,
-
-                master_serdes.rx_prbs.errors,
+                master_serdes.decoders[1].k
             ]
             self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 512, cd="master_serdes_rtio")
 
@@ -421,9 +380,7 @@ class SERDESTestSoC(BaseSoC):
                 slave_serdes.decoders[0].k,
                 slave_serdes.decoders[1].input,
                 slave_serdes.decoders[1].d,
-                slave_serdes.decoders[1].k,
-
-                slave_serdes.rx_prbs.errors,
+                slave_serdes.decoders[1].k
             ]
             self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 512, cd="slave_serdes_rtio")
 
