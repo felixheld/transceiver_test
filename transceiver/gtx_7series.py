@@ -86,9 +86,9 @@ class GTX(Module, AutoCSR):
 
         # # #
 
-        self.submodules.encoder = ClockDomainsRenamer("rtio")(
+        self.submodules.encoder = ClockDomainsRenamer("tx")(
             Encoder(2, True))
-        self.decoders = [ClockDomainsRenamer("rtio_rx")(
+        self.decoders = [ClockDomainsRenamer("rx")(
             Decoder(True)) for _ in range(2)]
         self.submodules += self.decoders
 
@@ -99,7 +99,7 @@ class GTX(Module, AutoCSR):
         self.txoutclk = Signal()
         self.rxoutclk = Signal()
 
-        self.rtio_clk_freq = cpll.config["linerate"]/20
+        self.tx_clk_freq = cpll.config["linerate"]/20
 
         # control/status cdc
         tx_produce_square_wave = Signal()
@@ -111,24 +111,24 @@ class GTX(Module, AutoCSR):
         rx_bitslip_value = Signal(5)
 
         self.specials += [
-            MultiReg(self.tx_produce_square_wave.storage, tx_produce_square_wave, "rtio"),
-            MultiReg(self.tx_prbs_config.storage, tx_prbs_config, "rtio"),
+            MultiReg(self.tx_produce_square_wave.storage, tx_produce_square_wave, "tx"),
+            MultiReg(self.tx_prbs_config.storage, tx_prbs_config, "tx"),
         ]
 
         self.specials += [
-            MultiReg(self.rx_prbs_config.storage, rx_prbs_config, "rtio_rx"),
+            MultiReg(self.rx_prbs_config.storage, rx_prbs_config, "rx"),
             MultiReg(rx_prbs_errors, self.rx_prbs_errors.status, "sys"), # FIXME
         ]
 
-        self.specials += MultiReg(self.rx_bitslip_value.storage, rx_bitslip_value, "rtio_rx")
+        self.specials += MultiReg(self.rx_bitslip_value.storage, rx_bitslip_value, "rx")
 
         # # #
 
         # TX generates RTIO clock, init must be in system domain
         tx_init = GTXInit(sys_clk_freq, False)
         # RX receives restart commands from RTIO domain
-        rx_init = ClockDomainsRenamer("rtio")(
-            GTXInit(self.rtio_clk_freq, True))
+        rx_init = ClockDomainsRenamer("tx")(
+            GTXInit(self.tx_clk_freq, True))
         self.submodules += tx_init, rx_init
         self.comb += [
             tx_init.plllock.eq(cpll.lock),
@@ -198,8 +198,8 @@ class GTX(Module, AutoCSR):
                 i_TXCHARDISPMODE=Cat(txdata[9], txdata[19]),
                 i_TXCHARDISPVAL=Cat(txdata[8], txdata[18]),
                 i_TXDATA=Cat(txdata[:8], txdata[10:18]),
-                i_TXUSRCLK=ClockSignal("rtio"),
-                i_TXUSRCLK2=ClockSignal("rtio"),
+                i_TXUSRCLK=ClockSignal("tx"),
+                i_TXUSRCLK2=ClockSignal("tx"),
 
                 # TX electrical
                 i_TXBUFDIFFCTRL=0b100,
@@ -238,8 +238,8 @@ class GTX(Module, AutoCSR):
                 i_RXSYSCLKSEL=0b00,
                 i_RXOUTCLKSEL=0b010,
                 o_RXOUTCLK=self.rxoutclk,
-                i_RXUSRCLK=ClockSignal("rtio_rx"),
-                i_RXUSRCLK2=ClockSignal("rtio_rx"),
+                i_RXUSRCLK=ClockSignal("rx"),
+                i_RXUSRCLK2=ClockSignal("rx"),
                 p_RXCDR_CFG=rxcdr_cfgs[cpll.config["d"]],
 
                 # RX Clock Correction Attributes
@@ -271,32 +271,32 @@ class GTX(Module, AutoCSR):
         tx_reset_deglitched = Signal()
         tx_reset_deglitched.attr.add("no_retiming")
         self.sync += tx_reset_deglitched.eq(~tx_init.done)
-        self.clock_domains.cd_rtio = ClockDomain()
+        self.clock_domains.cd_tx = ClockDomain()
         txoutclk_bufg = Signal()
         txoutclk_bufr = Signal()
-        tx_bufr_div = cpll.config["clkin"]/self.rtio_clk_freq
+        tx_bufr_div = cpll.config["clkin"]/self.tx_clk_freq
         assert tx_bufr_div == int(tx_bufr_div)
         self.specials += [
             Instance("BUFG", i_I=self.txoutclk, o_O=txoutclk_bufg),
             # TODO: use MMCM instead?
             Instance("BUFR", i_I=txoutclk_bufg, o_O=txoutclk_bufr,
                 i_CE=1, p_BUFR_DIVIDE=str(int(tx_bufr_div))),
-            Instance("BUFG", i_I=txoutclk_bufr, o_O=self.cd_rtio.clk),
-            AsyncResetSynchronizer(self.cd_rtio, tx_reset_deglitched)
+            Instance("BUFG", i_I=txoutclk_bufr, o_O=self.cd_tx.clk),
+            AsyncResetSynchronizer(self.cd_tx, tx_reset_deglitched)
         ]
 
         # rx clocking
         rx_reset_deglitched = Signal()
         rx_reset_deglitched.attr.add("no_retiming")
-        self.sync.rtio += rx_reset_deglitched.eq(~rx_init.done)
-        self.clock_domains.cd_rtio_rx = ClockDomain()
+        self.sync.tx += rx_reset_deglitched.eq(~rx_init.done)
+        self.clock_domains.cd_rx = ClockDomain()
         self.specials += [
-            Instance("BUFG", i_I=self.rxoutclk, o_O=self.cd_rtio_rx.clk),
-            AsyncResetSynchronizer(self.cd_rtio_rx, rx_reset_deglitched)
+            Instance("BUFG", i_I=self.rxoutclk, o_O=self.cd_rx.clk),
+            AsyncResetSynchronizer(self.cd_rx, rx_reset_deglitched)
         ]
 
         # tx data and prbs
-        self.submodules.tx_prbs = ClockDomainsRenamer("rtio")(PRBSTX(20, True))
+        self.submodules.tx_prbs = ClockDomainsRenamer("tx")(PRBSTX(20, True))
         self.comb += self.tx_prbs.config.eq(tx_prbs_config)
         self.comb += [
             self.tx_prbs.i.eq(Cat(*[self.encoder.output[i] for i in range(2)])),
@@ -309,7 +309,7 @@ class GTX(Module, AutoCSR):
         ]
 
         # rx data and prbs
-        self.submodules.rx_prbs = ClockDomainsRenamer("rtio_rx")(PRBSRX(20, True))
+        self.submodules.rx_prbs = ClockDomainsRenamer("rx")(PRBSRX(20, True))
         self.comb += [
             self.rx_prbs.config.eq(rx_prbs_config),
             rx_prbs_errors.eq(self.rx_prbs.errors)
@@ -322,7 +322,7 @@ class GTX(Module, AutoCSR):
 
         # clock alignment
         if clock_aligner:
-            clock_aligner = BruteforceClockAligner(0b0101111100, self.rtio_clk_freq)
+            clock_aligner = BruteforceClockAligner(0b0101111100, self.tx_clk_freq)
             self.submodules += clock_aligner
             self.comb += [
                 clock_aligner.rxdata.eq(rxdata),
