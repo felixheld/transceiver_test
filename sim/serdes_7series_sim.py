@@ -48,7 +48,6 @@ class SERDESSim(Module):
         tx_pads = platform.request("serdes_tx")
         rx_pads = platform.request("serdes_rx")
         serdes = SERDES(pll, clock_pads, tx_pads, rx_pads, mode="master")
-        #self.comb += serdes.produce_square_wave.eq(1)
         self.submodules += serdes
 
         counter = Signal(8)
