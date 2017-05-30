@@ -79,7 +79,7 @@ class GTPSim(Module):
         self.submodules += gtp
 
         counter = Signal(8)
-        self.sync.rtio += counter.eq(counter + 1)
+        self.sync.tx += counter.eq(counter + 1)
 
         self.comb += [
             gtp.encoder.k[0].eq(1),

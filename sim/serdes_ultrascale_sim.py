@@ -15,17 +15,13 @@ from transceiver.serdes_ultrascale import SERDESPLL, SERDES
 
 _io = [
     ("clk125", 0, Pins("X")),
-    ("serdes_clk", 0,
-        Subsignal("p", Pins("X")),
-        Subsignal("n", Pins("X"))
-    ),
-    ("serdes_tx", 0,
-        Subsignal("p", Pins("X")),
-        Subsignal("n", Pins("X"))
-    ),
-    ("serdes_rx", 0,
-        Subsignal("p", Pins("X")),
-        Subsignal("n", Pins("X"))
+    ("serdes", 0,
+        Subsignal("clk_p", Pins("X")),
+        Subsignal("clk_n", Pins("X")),
+        Subsignal("tx_p", Pins("X")),
+        Subsignal("tx_n", Pins("X")),
+        Subsignal("rx_p", Pins("X")),
+        Subsignal("rx_n", Pins("X")),
     ),
 ]
 
@@ -44,14 +40,11 @@ class SERDESSim(Module):
         self.submodules += pll
         self.comb += pll.refclk.eq(ClockSignal())
 
-        clock_pads = platform.request("serdes_clk")
-        tx_pads = platform.request("serdes_tx")
-        rx_pads = platform.request("serdes_rx")
-        serdes = SERDES(pll, clock_pads, tx_pads, rx_pads, mode="master")
+        serdes = SERDES(pll, platform.request("serdes"), mode="master")
         self.submodules += serdes
 
         counter = Signal(8)
-        self.sync.rtio += counter.eq(counter + 1)
+        self.sync.serdes += counter.eq(counter + 1)
         self.comb += [
             serdes.encoder.d[0].eq(counter),
             serdes.encoder.d[1].eq(counter)

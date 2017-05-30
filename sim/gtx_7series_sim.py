@@ -61,7 +61,7 @@ class GTXSim(Module):
         self.submodules += gtx
 
         counter = Signal(8)
-        self.sync.rtio += counter.eq(counter + 1)
+        self.sync.tx += counter.eq(counter + 1)
 
         self.comb += [
             gtx.encoder.k[0].eq(1),
