@@ -16,8 +16,7 @@ analyzer = LiteScopeAnalyzerDriver(wb.regs, "analyzer", debug=True)
 analyzer.configure_trigger()
 analyzer.configure_subsampler(1)
 analyzer.run(offset=128, length=1024)
-while not analyzer.done():
-    pass
+analyzer.wait_done()
 analyzer.upload()
 analyzer.save("dump.vcd")
 

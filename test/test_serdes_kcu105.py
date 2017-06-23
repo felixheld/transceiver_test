@@ -55,15 +55,14 @@ if prbs_test:
 
 # analyzer
 if analyzer_test:
-	from litescope.software.driver.analyzer import LiteScopeAnalyzerDriver
-	analyzer = LiteScopeAnalyzerDriver(wb.regs, "analyzer", debug=True)
-	analyzer.configure_trigger(cond={})
-	analyzer.configure_subsampler(1)
-	analyzer.run(offset=16, length=64)
-	while not analyzer.done():
-	    pass
-	analyzer.upload()
-	analyzer.save("dump.vcd")
+    from litescope.software.driver.analyzer import LiteScopeAnalyzerDriver
+    analyzer = LiteScopeAnalyzerDriver(wb.regs, "analyzer", debug=True)
+    analyzer.configure_trigger(cond={})
+    analyzer.configure_subsampler(1)
+    analyzer.run(offset=16, length=64)
+    analyzer.wait_done()
+    analyzer.upload()
+    analyzer.save("dump.vcd")
 
 # # #
 
