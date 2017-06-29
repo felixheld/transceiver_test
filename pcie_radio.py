@@ -60,7 +60,7 @@ class BaseSoC(SoCCore):
             cpu_type=None,
             csr_data_width=32,
             with_uart=False,
-            ident="PCIe SDR Transceiver Test Design",
+            ident="PCIe Radio Transceiver Test Design",
             with_timer=False
         )
         self.submodules.crg = CRG(self.sys_clk)
@@ -182,7 +182,7 @@ def main():
         soc = BaseSoC(platform)
     elif sys.argv[1] == "gtp":
         soc = GTPTestSoC(platform)
-    builder = Builder(soc, output_dir="build_pcie_sdr", csr_csv="test/csr.csv")
+    builder = Builder(soc, output_dir="build_pcie_radio", csr_csv="test/csr.csv")
     vns = builder.build()
     soc.do_exit(vns)
 
