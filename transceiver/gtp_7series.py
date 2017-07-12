@@ -112,8 +112,6 @@ class GTP(Module, AutoCSR):
         self.rx_prbs_config = CSRStorage(2)
         self.rx_prbs_errors = CSRStatus(32)
 
-        self.rx_bitslip_value = CSRStorage(5)
-
         # # #
 
         self.submodules.encoder = ClockDomainsRenamer("tx")(
@@ -138,8 +136,6 @@ class GTP(Module, AutoCSR):
         rx_prbs_config = Signal(2)
         rx_prbs_errors = Signal(32)
 
-        rx_bitslip_value = Signal(5)
-
         self.specials += [
             MultiReg(self.tx_produce_square_wave.storage, tx_produce_square_wave, "tx"),
             MultiReg(self.tx_prbs_config.storage, tx_prbs_config, "tx"),
@@ -149,8 +145,6 @@ class GTP(Module, AutoCSR):
             MultiReg(self.rx_prbs_config.storage, rx_prbs_config, "rx"),
             MultiReg(rx_prbs_errors, self.rx_prbs_errors.status, "sys"), # FIXME
         ]
-
-        self.specials += MultiReg(self.rx_bitslip_value.storage, rx_bitslip_value, "rx")
 
         # # #
 
