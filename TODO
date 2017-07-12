@@ -1,5 +1,4 @@
 high priority:
-- test TX/RX with multilanes (sfp0 and sfp1 on kcu105)
 - add automatic input delay detection (serdes_7series and serdes_ultrascale)
 - add automatic bitslip detection (serdes_7series and serdes_ultrascale)
 
