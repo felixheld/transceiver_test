@@ -159,14 +159,14 @@ class MultiGTHTestSoC(BaseSoC):
                 o_O=refclk)
         ]
 
-        cpll = GTHChannelPLL(refclk, 125e6, 1.25e9)
-        print(cpll)
-        self.submodules += cpll
+        cplls = [GTHChannelPLL(refclk, 125e6, 1.25e9) for i in range(2)]
+        self.submodules += iter(cplls)
+        print(cplls)
 
         self.comb += platform.request("sfps_tx_disable_n").eq(0b11)
         tx_pads = platform.request("sfps_tx")
         rx_pads = platform.request("sfps_rx")
-        mgth = MultiGTH(cpll, tx_pads, rx_pads, self.clk_freq,
+        mgth = MultiGTH(cplls, tx_pads, rx_pads, self.clk_freq,
             clock_aligner=True, internal_loopback=False)
         self.submodules += mgth
 
