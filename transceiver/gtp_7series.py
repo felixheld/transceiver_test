@@ -276,7 +276,7 @@ class GTP(Module, AutoCSR):
                 p_RXPH_CFG=0xc00002,
                 p_RX_DATA_WIDTH=20,
                 i_RXCOMMADETEN=1,
-                i_RXDLYBYPASS=1,
+                i_RXDLYBYPASS=0,
                 i_RXDDIEN=0,
                 o_RXDISPERR=Cat(rxdata[9], rxdata[19]),
                 o_RXCHARISK=Cat(rxdata[8], rxdata[18]),
