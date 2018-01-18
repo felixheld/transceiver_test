@@ -285,7 +285,7 @@ class GTP(Module, AutoCSR):
             p_RXBUF_ADDR_MODE                        ="FAST",
             p_RXBUF_EIDLE_HI_CNT                     =0b1000,
             p_RXBUF_EIDLE_LO_CNT                     =0b0000,
-            p_RXBUF_EN                               ="FALSE", # CHECK
+            p_RXBUF_EN                               ="TRUE",
             p_RX_BUFFER_CFG                          =0b000000,
             p_RXBUF_RESET_ON_CB_CHANGE               ="TRUE",
             p_RXBUF_RESET_ON_COMMAALIGN              ="FALSE",
@@ -301,12 +301,12 @@ class GTP(Module, AutoCSR):
             p_RXPH_CFG                               =0xC00002,
             p_RXPHDLY_CFG                            =0x084020,
             p_RXPH_MONITOR_SEL                       =0b00000,
-            p_RX_XCLK_SEL                            ="RXUSR", # CHECK
+            p_RX_XCLK_SEL                            ="RXREC",
             p_RX_DDI_SEL                             =0b000000,
             p_RX_DEFER_RESET_BUF_EN                  ="TRUE",
 
             # CDR Attributes
-            p_RXCDR_CFG                              =0x0001107FE086021101010, # CHECK
+            p_RXCDR_CFG                              =0x0001107FE086021101010,
             p_RXCDR_FR_RESET_ON_EIDLE                =0b0,
             p_RXCDR_HOLD_DURING_EIDLE                =0b0,
             p_RXCDR_PH_RESET_ON_EIDLE                =0b0,
@@ -351,7 +351,7 @@ class GTP(Module, AutoCSR):
             p_TRANS_TIME_RATE                        =0x0E,
 
             # TX Buffer Attributes
-            p_TXBUF_EN                               ="TRUE", # CHECK
+            p_TXBUF_EN                               ="TRUE",
             p_TXBUF_RESET_ON_RATE_CHANGE             ="TRUE",
             p_TXDLY_CFG                              =0x001F,
             p_TXDLY_LCFG                             =0x030,
@@ -359,7 +359,7 @@ class GTP(Module, AutoCSR):
             p_TXPH_CFG                               =0x0780,
             p_TXPHDLY_CFG                            =0x084020,
             p_TXPH_MONITOR_SEL                       =0b00000,
-            p_TX_XCLK_SEL                            ="TXOUT", # CHECK
+            p_TX_XCLK_SEL                            ="TXOUT",
 
             # FPGA TX Interface Attributes
             p_TX_DATA_WIDTH                          =20,
@@ -483,7 +483,7 @@ class GTP(Module, AutoCSR):
 
             # TX Buffer Attributes
             p_TXSYNC_MULTILANE                       =0b0,
-            p_TXSYNC_OVRD                            =0b1,
+            p_TXSYNC_OVRD                            =0b0,
             p_TXSYNC_SKIP_DA                         =0b0
         )
         xilinx_mess.update(
@@ -582,7 +582,7 @@ class GTP(Module, AutoCSR):
             i_RXBUFRESET                     =0,
             #o_RXBUFSTATUS                    =,
             i_RXDDIEN                        =0,
-            i_RXDLYBYPASS                    =0,
+            i_RXDLYBYPASS                    =1,
             i_RXDLYEN                        =0,
             i_RXDLYOVRDEN                    =0,
             i_RXDLYSRESET                    =rx_init.Xxdlysreset,
@@ -645,7 +645,7 @@ class GTP(Module, AutoCSR):
             o_RXOUTCLK                       =self.rxoutclk,
             #o_RXOUTCLKFABRIC                 =,
             #o_RXOUTCLKPCS                    =,
-            i_RXOUTCLKSEL                    =0b010, # CHECK
+            i_RXOUTCLKSEL                    =0b010,
             # Receive Ports - RX Gearbox Ports
             #o_RXDATAVALID                    =,
             #o_RXHEADER                       =,
@@ -750,7 +750,7 @@ class GTP(Module, AutoCSR):
             o_TXOUTCLK                       =self.txoutclk,
             #o_TXOUTCLKFABRIC                 =,
             #o_TXOUTCLKPCS                    =,
-            i_TXOUTCLKSEL                    =0b011, # CHECK
+            i_TXOUTCLKSEL                    =0b010,
             #o_TXRATEDONE                     =,
             # Transmit Ports - TX Gearbox Ports
             #o_TXGEARBOXREADY                 =,
