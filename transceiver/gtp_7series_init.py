@@ -168,9 +168,9 @@ class GTPInit(Module):
             startup_fsm.act("WAIT_PMARST_FALL",
                 self.debug.eq(6),
                 Xxuserrdy.eq(1),
-                pma_timer.wait.eq(1),
-                If(pma_timer.done,
-                #If(rx_pma_reset_done_r & ~rx_pma_reset_done, # FIXME!
+                #pma_timer.wait.eq(1),
+                #If(pma_timer.done,
+                If(rx_pma_reset_done_r & ~rx_pma_reset_done, # FIXME!
                     NextState("DRP_RESTORE_ISSUE")
                 )
             )
@@ -242,9 +242,10 @@ class GTPInit(Module):
                 self.debug.eq(4),
                 Xxuserrdy.eq(1),
                 Xxphinit.eq(1),
-                If(Xxphinitdone,
-                    NextState("PHALIGN")
-                )
+                NextState("READY"), # FIXME
+                #If(Xxphinitdone,
+                #    NextState("PHALIGN")
+                #)
             )
             # Phase align
             startup_fsm.act("PHALIGN",
@@ -267,5 +268,7 @@ class GTPInit(Module):
             self.debug.eq(12),
             Xxuserrdy.eq(1),
             self.done.eq(1),
-            If(self.restart, NextState("RESET_ALL"))
+            If(self.restart,
+                NextState("RESET_ALL")
+            )
         )

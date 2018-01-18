@@ -21,10 +21,17 @@ _io = [
     ("rst_n", Pins("AA1"), IOStandard("LVCMOS25")),
     ("user_led", 0, Pins("AB1"), IOStandard("LVCMOS25")),
     ("user_led", 1, Pins("AB8"), IOStandard("LVCMOS25")),
+    ("user_btn", 0, Pins("AA1"), IOStandard("LVCMOS25")),
+    ("user_btn", 1, Pins("AB6"), IOStandard("LVCMOS25")),
     ("serial", 0,
         Subsignal("tx", Pins("Y6")),
         Subsignal("rx", Pins("AA6")),
         IOStandard("LVCMOS25")
+    ),
+
+    ("sfp_refclk", 0,
+        Subsignal("p", Pins("F10")),
+        Subsignal("n", Pins("E10")),
     ),
     ("sfp_tx_disable_n", 0, Pins("AA20"), IOStandard("LVCMOS25")),
     ("sfp_tx", 0,
@@ -70,7 +77,7 @@ class BaseSoC(SoCCore):
             ident="PCIe CPRI Transceiver Test Design",
             with_timer=False
         )
-        self.submodules.crg = CRG(self.sys_clk)
+        self.submodules.crg = CRG(self.sys_clk, ~platform.request("user_btn", 0))
         self.add_cpu_or_bridge(UARTWishboneBridge(platform.request("serial"),
                                                   self.sys_clk_freq, baudrate=115200))
         self.add_wb_master(self.cpu_or_bridge.wishbone)
@@ -104,9 +111,20 @@ class GTPTestSoC(BaseSoC):
                 p_CLKOUT0_DIVIDE=8, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=refclk125
             ),
         ]
-        platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
+
+        refclk38p4 = Signal()
+        refclk38p4_pads = platform.request("sfp_refclk")
+        self.specials += [
+            Instance("IBUFDS_GTE2",
+                i_CEB=0,
+                i_I=refclk38p4_pads.p,
+                i_IB=refclk38p4_pads.n,
+                o_O=refclk38p4)
+        ]
 
         qpll = GTPQuadPLL(refclk125, 125e6, 1.25e9, refclk_from_fabric=True)
+        platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
+        #qpll = GTPQuadPLL(refclk38p4, 125e6, 2.5e9)
         print(qpll)
         self.submodules += qpll
 
@@ -121,7 +139,7 @@ class GTPTestSoC(BaseSoC):
         else:
             raise ValueError
         gtp = GTP(qpll, tx_pads, rx_pads, self.sys_clk_freq,
-            clock_aligner=True, internal_loopback=False)
+            clock_aligner=False, internal_loopback=False)
         self.submodules += gtp
 
         counter = Signal(32)
@@ -158,7 +176,8 @@ class GTPTestSoC(BaseSoC):
         self.sync.rx += rx_counter.eq(rx_counter + 1)
         self.comb += rx_counter_led.eq(rx_counter[26])
 
-        self.comb += platform.request("user_led", 0).eq(tx_counter_led ^ rx_counter_led)
+        self.comb += platform.request("user_led", 0).eq(tx_counter_led)
+        self.comb += platform.request("user_led", 1).eq(rx_counter_led)
 
         if with_analyzer:
             analyzer_signals = [
@@ -173,7 +192,7 @@ class GTPTestSoC(BaseSoC):
                 gtp.decoders[1].d,
                 gtp.decoders[1].k,
             ]
-            self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 2048, cd_ratio=2, cd="tx")
+            self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 256)
 
     def do_exit(self, vns):
         if hasattr(self, "analyzer"):
