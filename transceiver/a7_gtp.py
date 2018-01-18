@@ -72,6 +72,8 @@ class GTPRxInit(Module):
         self.restart = Signal()
         self.done = Signal()
 
+        self.debug = Signal(8)
+
         # Handle async signals
         rx_reset = Signal()
         self.sync += self.rx_reset.eq(rx_reset)
@@ -97,18 +99,22 @@ class GTPRxInit(Module):
         self.submodules += fsm
 
         fsm.act("WAIT_ENABLE",
+            self.debug.eq(0),
             If(self.enable, NextState("GTRXRESET"))
         )
         fsm.act("GTRXRESET",
+            self.debug.eq(1),
             rx_reset.eq(1),
             NextState("DRP_READ_ISSUE")
         )
         fsm.act("DRP_READ_ISSUE",
+            self.debug.eq(2),
             rx_reset.eq(1),
             self.drpen.eq(1),
             NextState("DRP_READ_WAIT")
         )
         fsm.act("DRP_READ_WAIT",
+            self.debug.eq(3),
             rx_reset.eq(1),
             If(self.drprdy,
                 NextValue(drpvalue, self.drpdo),
@@ -116,6 +122,7 @@ class GTPRxInit(Module):
             )
         )
         fsm.act("DRP_MOD_ISSUE",
+            self.debug.eq(4),
             rx_reset.eq(1),
             drpmask.eq(1),
             self.drpen.eq(1),
@@ -123,27 +130,32 @@ class GTPRxInit(Module):
             NextState("DRP_MOD_WAIT")
         )
         fsm.act("DRP_MOD_WAIT",
+            self.debug.eq(5),
             rx_reset.eq(1),
             If(self.drprdy,
                 NextState("WAIT_PMARST_FALL")
             )
         )
         fsm.act("WAIT_PMARST_FALL",
+            self.debug.eq(6),
             If(rx_pma_reset_done_r & ~rx_pma_reset_done,
                 NextState("DRP_RESTORE_ISSUE")
             )
         )
         fsm.act("DRP_RESTORE_ISSUE",
+            self.debug.eq(7),
             self.drpen.eq(1),
             self.drpwe.eq(1),
             NextState("DRP_RESTORE_WAIT")
         )
         fsm.act("DRP_RESTORE_WAIT",
+            self.debug.eq(8),
             If(self.drprdy,
                 NextState("DONE")
             )
         )
         fsm.act("DONE",
+            self.debug.eq(9),
             self.done.eq(1),
             If(self.restart, NextState("WAIT_ENABLE"))
         )
@@ -155,6 +167,8 @@ class GTPTxInit(Module):
         self.qpll_lock = Signal()
         self.tx_reset = Signal()
         self.done = Signal()
+
+        self.debug = Signal(8)
 
         # Handle async signals
         qpll_reset = Signal()
@@ -188,18 +202,22 @@ class GTPTxInit(Module):
         self.submodules += fsm
 
         fsm.act("WAIT",
+            self.debug.eq(0),
             If(tick, NextState("QPLL_RESET"))
         )
         fsm.act("QPLL_RESET",
+            self.debug.eq(1),
             tx_reset.eq(1),
             qpll_reset.eq(1),
             If(tick, NextState("WAIT_QPLL_LOCK"))
         )
         fsm.act("WAIT_QPLL_LOCK",
+            self.debug.eq(2),
             tx_reset.eq(1),
             If(qpll_lock & tick, NextState("DONE"))
         )
         fsm.act("DONE",
+            self.debug.eq(3),
             self.done.eq(1)
         )
 
@@ -929,7 +947,7 @@ class GTP(Module):
 
         # Transceiver init
         tx_init = GTPTxInit(sys_clk_freq)
-        self.submodules += tx_init
+        self.submodules.tx_init = tx_init
         self.comb += [
             qpll_channel.reset.eq(tx_init.qpll_reset),
             tx_init.qpll_lock.eq(qpll_channel.lock),
@@ -939,7 +957,7 @@ class GTP(Module):
         tx_mmcm_reset.attr.add("no_retiming")
 
         rx_init = GTPRxInit(sys_clk_freq)
-        self.submodules += rx_init
+        self.submodules.rx_init = rx_init
         self.comb += [
             rx_init.enable.eq(tx_init.done),
             rx_reset.eq(rx_init.rx_reset),
