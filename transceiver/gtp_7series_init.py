@@ -4,10 +4,6 @@ from litex.gen import *
 from litex.gen.genlib.cdc import MultiReg, PulseSynchronizer
 from litex.gen.genlib.misc import WaitTimer
 
-# TODO:
-# code is working but it seems we need to follow the obscure rx init sequence
-# described in https://www.xilinx.com/support/answers/53561.html to remove
-# our work arounds...
 
 class GTPInit(Module):
     def __init__(self, sys_clk_freq, rx):
@@ -31,7 +27,33 @@ class GTPInit(Module):
         self.Xxuserrdy = Signal()
         self.Xxsyncdone = Signal()
 
+        self.drpaddr = Signal(9)
+        self.drpen = Signal()
+        self.drpdi = Signal(16)
+        self.drprdy = Signal()
+        self.drpdo = Signal(16)
+        self.drpwe = Signal()
+
+        self.rx_pma_reset_done = Signal()
+
         # # #
+
+        rx_pma_reset_done = Signal()
+        self.specials += MultiReg(self.rx_pma_reset_done, rx_pma_reset_done)
+
+        drpvalue = Signal(16)
+        drpmask = Signal()
+        self.comb += [
+            self.drpaddr.eq(0x011),
+            If(drpmask,
+                self.drpdi.eq(drpvalue & 0xf7ff)
+            ).Else(
+                self.drpdi.eq(drpvalue)
+            )
+        ]
+
+        rx_pma_reset_done_r = Signal()
+        self.sync += rx_pma_reset_done_r.eq(rx_pma_reset_done)
 
         # Double-latch transceiver asynch outputs
         plllock = Signal()
@@ -64,6 +86,7 @@ class GTPInit(Module):
             self.Xxdlyen.eq(Xxdlyen),
             self.Xxuserrdy.eq(Xxuserrdy)
         ]
+        self.gtXxreset.attr.add("no_retiming")
 
         # After configuration, transceiver resets have to stay low for
         # at least 500ns (see AR43482)
@@ -81,6 +104,9 @@ class GTPInit(Module):
             startup_fsm.reset.eq(self.restart | ready_timer.done)
         ]
 
+        pma_timer = WaitTimer(int(sys_clk_freq/10000))
+        self.submodules += pma_timer
+
         if rx:
             cdr_stable_timer = WaitTimer(1024)
             self.submodules += cdr_stable_timer
@@ -97,26 +123,83 @@ class GTPInit(Module):
             startup_timer.wait.eq(1),
             NextState("RELEASE_PLL_RESET")
         )
-        startup_fsm.act("RELEASE_PLL_RESET",
-            self.debug.eq(1),
-            gtXxreset.eq(1),
-            startup_timer.wait.eq(1),
-            If(plllock & startup_timer.done, NextState("RELEASE_GTP_RESET"))
-        )
+
         # Release GTP reset and wait for GTP resetdone
         # (from UG482, GTP is reset on falling edge
         # of gtXxreset)
         if rx:
-            startup_fsm.act("RELEASE_GTP_RESET",
+            startup_fsm.act("RELEASE_PLL_RESET",
+                self.debug.eq(1),
+                gtXxreset.eq(1),
+                startup_timer.wait.eq(1),
+                If(plllock & startup_timer.done,
+                    NextState("DRP_READ_ISSUE")
+                )
+            )
+            startup_fsm.act("DRP_READ_ISSUE",
                 self.debug.eq(2),
+                gtXxreset.eq(1),
+                self.drpen.eq(1),
+                NextState("DRP_READ_WAIT")
+            )
+            startup_fsm.act("DRP_READ_WAIT",
+                self.debug.eq(3),
+                gtXxreset.eq(1),
+                If(self.drprdy,
+                    NextValue(drpvalue, self.drpdo),
+                    NextState("DRP_MOD_ISSUE")
+                )
+            )
+            startup_fsm.act("DRP_MOD_ISSUE",
+                self.debug.eq(4),
+                gtXxreset.eq(1),
+                drpmask.eq(1),
+                self.drpen.eq(1),
+                self.drpwe.eq(1),
+                NextState("DRP_MOD_WAIT")
+            )
+            startup_fsm.act("DRP_MOD_WAIT",
+                self.debug.eq(5),
+                gtXxreset.eq(1),
+                If(self.drprdy,
+                    NextState("WAIT_PMARST_FALL")
+                )
+            )
+            startup_fsm.act("WAIT_PMARST_FALL",
+                self.debug.eq(6),
+                Xxuserrdy.eq(1),
+                pma_timer.wait.eq(1),
+                If(pma_timer.done,
+                #If(rx_pma_reset_done_r & ~rx_pma_reset_done, # FIXME!
+                    NextState("DRP_RESTORE_ISSUE")
+                )
+            )
+            startup_fsm.act("DRP_RESTORE_ISSUE",
+                self.debug.eq(7),
+                Xxuserrdy.eq(1),
+                self.drpen.eq(1),
+                self.drpwe.eq(1),
+                NextState("DRP_RESTORE_WAIT")
+            )
+            startup_fsm.act("DRP_RESTORE_WAIT",
+                self.debug.eq(8),
+                Xxuserrdy.eq(1),
+                If(self.drprdy,
+                    NextState("WAIT_GTP_RESET_DONE")
+                )
+            )
+            startup_fsm.act("WAIT_GTP_RESET_DONE",
+                self.debug.eq(9),
                 Xxuserrdy.eq(1),
                 cdr_stable_timer.wait.eq(1),
-                #If(Xxresetdone & cdr_stable_timer.done, NextState("ALIGN"))
-                If(cdr_stable_timer.done, NextState("ALIGN")) # FIXME!
+                If(cdr_stable_timer.done,
+                #If(Xxresetdone & cdr_stable_timer.done,
+                    NextState("ALIGN")
+                )
             )
             # Delay alignment
             startup_fsm.act("ALIGN",
-                self.debug.eq(3),
+                self.debug.eq(10),
                 Xxuserrdy.eq(1),
                 Xxdlysreset.eq(1),
                 If(Xxdlysresetdone,
@@ -124,7 +207,7 @@ class GTPInit(Module):
                 )
             )
             startup_fsm.act("WAIT_ALIGN_DONE",
-                self.debug.eq(4),
+                self.debug.eq(11),
                 Xxuserrdy.eq(1),
                 If(1,
                 #If(Xxsyncdone, # FIXME!
@@ -132,6 +215,14 @@ class GTPInit(Module):
                 )
             )
         else:
+            startup_fsm.act("RELEASE_PLL_RESET",
+                self.debug.eq(1),
+                gtXxreset.eq(1),
+                startup_timer.wait.eq(1),
+                If(plllock & startup_timer.done,
+                    NextState("RELEASE_GTP_RESET")
+                )
+            )
             startup_fsm.act("RELEASE_GTP_RESET",
                 self.debug.eq(2),
                 Xxuserrdy.eq(1),
@@ -173,7 +264,7 @@ class GTPInit(Module):
                 )
             )
         startup_fsm.act("READY",
-            self.debug.eq(7),
+            self.debug.eq(12),
             Xxuserrdy.eq(1),
             self.done.eq(1),
             If(self.restart, NextState("RESET_ALL"))

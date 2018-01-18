@@ -179,6 +179,15 @@ class GTP(Module, AutoCSR):
                 i_RESETOVRD=0,
                 p_SIM_RESET_SPEEDUP="FALSE",
 
+                # DRP
+                i_DRPADDR=rx_init.drpaddr,
+                i_DRPCLK=ClockSignal("tx"),
+                i_DRPDI=rx_init.drpdi,
+                o_DRPDO=rx_init.drpdo,
+                i_DRPEN=rx_init.drpen,
+                o_DRPRDY=rx_init.drprdy,
+                i_DRPWE=rx_init.drpwe,
+
                 # PMA Attributes
                 p_PMA_RSV=0x333,
                 p_PMA_RSV2=0x2040,
@@ -192,6 +201,14 @@ class GTP(Module, AutoCSR):
                 i_RXELECIDLEMODE=0b11,
                 i_RXOSINTCFG=0b0010,
                 i_RXOSINTEN=1,
+
+                p_CLK_COMMON_SWING                       =0b0,
+                p_RX_CLKMUX_EN                           =0b1,
+                p_TX_CLKMUX_EN                           =0b1,
+                p_ES_CLK_PHASE_SEL                       =0b0,
+                p_USE_PCS_CLK_PHASE_SEL                  =0b0,
+                p_PMA_RSV6                               =0b0,
+                p_PMA_RSV7                               =0b0,
 
                 # Power-Down Attributes
                 p_PD_TRANS_TIME_FROM_P2=0x3c,
@@ -250,6 +267,12 @@ class GTP(Module, AutoCSR):
                 i_RXSYNCIN=0,
                 i_RXSYNCMODE=0,
                 o_RXSYNCDONE=rx_init.Xxsyncdone,
+                i_RXLPMRESET=0,
+                i_RXOOBRESET=0,
+                i_RXPCSRESET=0,
+                i_RXPMARESET=0,
+                p_RXPMARESET_TIME=0b11,
+                o_RXPMARESETDONE=rx_init.rx_pma_reset_done,
 
                 # RX clock
                 p_RX_CLK25_DIV=5,
@@ -348,7 +371,7 @@ class GTP(Module, AutoCSR):
 
         # clock alignment
         if clock_aligner:
-            clock_aligner = BruteforceClockAligner(0b0101111100, self.tx_clk_freq)
+            clock_aligner = BruteforceClockAligner(0b0101111100, self.tx_clk_freq, check_period=6e-3)
             self.submodules += clock_aligner
             self.comb += [
                 clock_aligner.rxdata.eq(rxdata),
