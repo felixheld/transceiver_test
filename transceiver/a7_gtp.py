@@ -222,32 +222,6 @@ class GTPTxInit(Module):
         )
 
 
-class Gearbox(Module):
-    def __init__(self):
-        self.tx_data = Signal(10)
-        self.tx_data_half = Signal(20)
-        self.rx_data_half = Signal(20)
-        self.rx_data = Signal(10)
-
-        # TX
-        buf = Signal(20)
-        self.sync.tx += buf.eq(Cat(buf[10:], self.tx_data))
-        self.sync.tx_half += self.tx_data_half.eq(buf)
-
-        # RX
-        phase_half = Signal()
-        phase_half_rereg = Signal()
-        self.sync.rx_half += phase_half_rereg.eq(phase_half)
-        self.sync.rx += [
-            If(phase_half == phase_half_rereg,
-                self.rx_data.eq(self.rx_data_half[10:])
-            ).Else(
-                self.rx_data.eq(self.rx_data_half[:10])
-            ),
-            phase_half.eq(~phase_half),
-        ]
-
-
 class GTP(Module):
     def __init__(self, qpll_channel, tx_pads, rx_pads, sys_clk_freq):
         self.rx_data = Signal(20)
@@ -266,12 +240,10 @@ class GTP(Module):
 
         # GTP transceiver
         tx_reset = Signal()
-        tx_mmcm_locked = Signal()
         tx_data = Signal(20)
         tx_reset_done = Signal()
 
         rx_reset = Signal()
-        rx_mmcm_locked = Signal()
         rx_data = Signal(20)
         rx_reset_done = Signal()
         rx_pma_reset_done = Signal()
@@ -634,7 +606,7 @@ class GTP(Module):
             i_SETERRSTATUS                   =0,
             # RX Initialization and Reset Ports
             i_EYESCANRESET                   =0,
-            i_RXUSERRDY                      =rx_mmcm_locked,
+            i_RXUSERRDY                      =1,
             # RX Margin Analysis Ports
             #o_EYESCANDATAERROR               =,
             i_EYESCANMODE                    =0,
@@ -668,9 +640,9 @@ class GTP(Module):
             # Receive Ports - FPGA RX Interface Datapath Configuration
             i_RX8B10BEN                      =0,
             # Receive Ports - FPGA RX Interface Ports
-            o_RXDATA                         =Cat(rx_data[:8], rx_data[10:18]),
-            i_RXUSRCLK                       =ClockSignal("rx_half"),
-            i_RXUSRCLK2                      =ClockSignal("rx_half"),
+            o_RXDATA                         =Cat(self.rx_data[:8], self.rx_data[10:18]),
+            i_RXUSRCLK                       =ClockSignal("rx"),
+            i_RXUSRCLK2                      =ClockSignal("rx"),
             # Receive Ports - Pattern Checker Ports
             #o_RXPRBSERR                      =,
             i_RXPRBSSEL                      =0,
@@ -678,8 +650,8 @@ class GTP(Module):
             i_RXPRBSCNTRESET                 =0,
             # Receive Ports - RX 8B/10B Decoder Ports
             #o_RXCHARISCOMMA                  =,
-            o_RXCHARISK                      =Cat(rx_data[8], rx_data[18]),
-            o_RXDISPERR                      =Cat(rx_data[9], rx_data[19]),
+            o_RXCHARISK                      =Cat(self.rx_data[8], self.rx_data[18]),
+            o_RXDISPERR                      =Cat(self.rx_data[9], self.rx_data[19]),
             #o_RXNOTINTABLE                   =,
             # Receive Ports - RX AFE Ports
             i_GTPRXN                         =rx_pads.n,
@@ -790,7 +762,7 @@ class GTP(Module):
             i_CFGRESET                       =0,
             i_GTTXRESET                      =tx_reset,
             #o_PCSRSVDOUT                     =,
-            i_TXUSERRDY                      =tx_mmcm_locked,
+            i_TXUSERRDY                      =1,
             # TX Phase Interpolator PPM Controller Ports
             i_TXPIPPMEN                      =0,
             i_TXPIPPMOVRDEN                  =0,
@@ -806,9 +778,9 @@ class GTP(Module):
             i_PMARSVDIN0                     =0b0,
             i_PMARSVDIN1                     =0b0,
             # Transmit Ports - FPGA TX Interface Ports
-            i_TXDATA                         =Cat(tx_data[:8], tx_data[10:18]),
-            i_TXUSRCLK                       =ClockSignal("tx_half"),
-            i_TXUSRCLK2                      =ClockSignal("tx_half"),
+            i_TXDATA                         =Cat(self.tx_data[:8], self.tx_data[10:18]),
+            i_TXUSRCLK                       =ClockSignal("tx"),
+            i_TXUSRCLK2                      =ClockSignal("tx"),
             # Transmit Ports - PCI Express Ports
             i_TXELECIDLE                     =0,
             i_TXMARGIN                       =0,
@@ -818,8 +790,8 @@ class GTP(Module):
             i_TXPRBSFORCEERR                 =0,
             # Transmit Ports - TX 8B/10B Encoder Ports
             i_TX8B10BBYPASS                  =0,
-            i_TXCHARDISPMODE                 =Cat(tx_data[9], tx_data[19]),
-            i_TXCHARDISPVAL                  =Cat(tx_data[8], tx_data[18]),
+            i_TXCHARDISPMODE                 =Cat(self.tx_data[9], self.tx_data[19]),
+            i_TXCHARDISPVAL                  =Cat(self.tx_data[8], self.tx_data[18]),
             i_TXCHARISK                      =0,
             # Transmit Ports - TX Buffer Bypass Ports
             i_TXDLYBYPASS                    =1,
@@ -885,65 +857,9 @@ class GTP(Module):
         )
         self.specials += Instance("GTPE2_CHANNEL", **xilinx_mess)
 
-        # Get 125MHz clocks back - the GTP junk insists on outputting 62.5MHz.
-        txoutclk_rebuffer = Signal()
-        self.specials += Instance("BUFH", i_I=self.txoutclk, o_O=txoutclk_rebuffer)
-        rxoutclk_rebuffer = Signal()
-        self.specials += Instance("BUFG", i_I=self.rxoutclk, o_O=rxoutclk_rebuffer)
-
-        tx_mmcm_fb = Signal()
-        tx_mmcm_reset = Signal(reset=1)
-        clk_tx_unbuf = Signal()
-        clk_tx_half_unbuf = Signal()
-        self.specials += [
-            Instance("MMCME2_BASE",
-                p_CLKIN1_PERIOD=16.0,
-                i_CLKIN1=txoutclk_rebuffer,
-                i_RST=tx_mmcm_reset,
-
-                o_CLKFBOUT=tx_mmcm_fb,
-                i_CLKFBIN=tx_mmcm_fb,
-
-                p_CLKFBOUT_MULT_F=16,
-                o_LOCKED=tx_mmcm_locked,
-                p_DIVCLK_DIVIDE=1,
-
-                p_CLKOUT0_DIVIDE_F=16,
-                o_CLKOUT0=clk_tx_half_unbuf,
-                p_CLKOUT1_DIVIDE=8,
-                o_CLKOUT1=clk_tx_unbuf,
-            ),
-            Instance("BUFH", i_I=clk_tx_half_unbuf, o_O=self.cd_tx_half.clk),
-            Instance("BUFH", i_I=clk_tx_unbuf, o_O=self.cd_tx.clk),
-            AsyncResetSynchronizer(self.cd_tx, ~tx_mmcm_locked)
-        ]
-
-        rx_mmcm_fb = Signal()
-        rx_mmcm_reset = Signal(reset=1)
-        clk_rx_unbuf = Signal()
-        clk_rx_half_unbuf = Signal()
-        self.specials += [
-            Instance("MMCME2_BASE",
-                p_CLKIN1_PERIOD=16.0,
-                i_CLKIN1=rxoutclk_rebuffer,
-                i_RST=rx_mmcm_reset,
-
-                o_CLKFBOUT=rx_mmcm_fb,
-                i_CLKFBIN=rx_mmcm_fb,
-
-                p_CLKFBOUT_MULT_F=16,
-                o_LOCKED=rx_mmcm_locked,
-                p_DIVCLK_DIVIDE=1,
-
-                p_CLKOUT0_DIVIDE_F=16,
-                o_CLKOUT0=clk_rx_half_unbuf,
-                p_CLKOUT1_DIVIDE=8,
-                o_CLKOUT1=clk_rx_unbuf,
-            ),
-            Instance("BUFG", i_I=clk_rx_half_unbuf, o_O=self.cd_rx_half.clk),
-            Instance("BUFG", i_I=clk_rx_unbuf, o_O=self.cd_rx.clk),
-            AsyncResetSynchronizer(self.cd_rx, ~rx_mmcm_locked)
-        ]
+        self.specials += Instance("BUFG", i_I=self.txoutclk, o_O=self.cd_tx.clk)
+        self.specials += Instance("BUFG", i_I=self.rxoutclk, o_O=self.cd_rx.clk)
+        self.specials += AsyncResetSynchronizer(self.cd_tx, ~qpll_channel.lock)
 
         # Transceiver init
         tx_init = GTPTxInit(sys_clk_freq)
@@ -953,8 +869,6 @@ class GTP(Module):
             tx_init.qpll_lock.eq(qpll_channel.lock),
             tx_reset.eq(tx_init.tx_reset)
         ]
-        self.sync += tx_mmcm_reset.eq(~qpll_channel.lock)
-        tx_mmcm_reset.attr.add("no_retiming")
 
         rx_init = GTPRxInit(sys_clk_freq)
         self.submodules.rx_init = rx_init
@@ -992,18 +906,5 @@ class GTP(Module):
             ).Else(
                 cdr_locked.eq(1)
             ),
-            rx_mmcm_reset.eq(~cdr_locked)
         ]
-        rx_mmcm_reset.attr.add("no_retiming")
-
-        # Gearbox connection
-        gearbox = Gearbox()
-        self.submodules += gearbox
-
-        self.comb += [
-            tx_data.eq(gearbox.tx_data_half),
-            gearbox.rx_data_half.eq(rx_data),
-
-            gearbox.tx_data.eq(self.tx_data),
-            self.rx_data.eq(gearbox.rx_data)
-        ]
+        self.specials += AsyncResetSynchronizer(self.cd_rx, ~cdr_locked)
