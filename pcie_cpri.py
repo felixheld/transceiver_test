@@ -91,27 +91,54 @@ class GTPTestSoC(BaseSoC):
             Instance("BUFG", i_I=refclk100, o_O=self.sys_clk)
         ]
 
-        refclk125 = Signal()
-        refclk125_bufg = Signal()
-        pll_fb = Signal()
-        self.specials += [
-            Instance("PLLE2_BASE",
-                p_STARTUP_WAIT="FALSE", #o_LOCKED=,
+        linerate = 3.00e9
+        if linerate == 1.25e9:
+            refclk125 = Signal()
+            refclk125_bufg = Signal()
+            pll_fb = Signal()
+            self.specials += [
+                Instance("PLLE2_BASE",
+                    p_STARTUP_WAIT="FALSE", #o_LOCKED=,
 
-                # VCO @ 1GHz
-                p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=10.0,
-                p_CLKFBOUT_MULT=10, p_DIVCLK_DIVIDE=1,
-                i_CLKIN1=self.sys_clk, i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
+                    # VCO @ 1GHz
+                    p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=10.0,
+                    p_CLKFBOUT_MULT=10, p_DIVCLK_DIVIDE=1,
+                    i_CLKIN1=self.sys_clk, i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
 
-                # 125MHz
-                p_CLKOUT0_DIVIDE=8, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=refclk125
-            ),
-            Instance("BUFG", i_I=refclk125, o_O=refclk125_bufg)
-        ]
+                    # 125MHz
+                    p_CLKOUT0_DIVIDE=8, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=refclk125
+                ),
+                Instance("BUFG", i_I=refclk125, o_O=refclk125_bufg)
+            ]
 
-        qpll = GTPQuadPLL(refclk125_bufg, 125e6, 1.25e9)
-        print(qpll)
-        self.submodules += qpll
+            qpll = GTPQuadPLL(refclk125_bufg, 125e6, 1.25e9)
+            print(qpll)
+            self.submodules += qpll
+        elif linerate == 3.00e9:
+            refclk150 = Signal()
+            refclk150_bufg = Signal()
+            pll_fb = Signal()
+            self.specials += [
+                Instance("PLLE2_BASE",
+                    p_STARTUP_WAIT="FALSE", #o_LOCKED=,
+
+                    # VCO @ 1.2GHz
+                    p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=10.0,
+                    p_CLKFBOUT_MULT=12, p_DIVCLK_DIVIDE=1,
+                    i_CLKIN1=self.sys_clk, i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
+
+                    # 125MHz
+                    p_CLKOUT0_DIVIDE=8, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=refclk150
+                ),
+                Instance("BUFG", i_I=refclk150, o_O=refclk150_bufg)
+            ]
+
+            qpll = GTPQuadPLL(refclk150_bufg, 150e6, 3.0e9)
+            print(qpll)
+            self.submodules += qpll
+        else:
+            ValueError("Unsupported linerate")
+
 
         if medium == "sfp0":
             self.comb += platform.request("sfp_tx_disable_n", 0).eq(1)
