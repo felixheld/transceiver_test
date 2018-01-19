@@ -64,7 +64,7 @@ class GTPTXInit(Module):
         pll_reset_timer = WaitTimer(pll_reset_cycles)
         self.submodules += pll_reset_timer
 
-        startup_fsm = ResetInserter()(FSM(reset_state="RESET_ALL"))
+        startup_fsm = ResetInserter()(FSM(reset_state="PLL_RESET"))
         self.submodules += startup_fsm
 
         ready_timer = WaitTimer(int(1e-3*sys_clk_freq))
@@ -79,24 +79,23 @@ class GTPTXInit(Module):
         self.sync += txphaligndone_r.eq(txphaligndone)
         self.comb += txphaligndone_rising.eq(txphaligndone & ~txphaligndone_r)
 
-        startup_fsm.act("RESET_ALL",
-            gttxreset.eq(1),
+        startup_fsm.act("PLL_RESET",
             self.pllreset.eq(1),
             pll_reset_timer.wait.eq(1),
             If(pll_reset_timer.done,
-                NextState("RELEASE_PLL_RESET")
+                NextState("GTP_RESET")
             )
         )
-        startup_fsm.act("RELEASE_PLL_RESET",
+        startup_fsm.act("GTP_RESET",
             gttxreset.eq(1),
             If(plllock,
-                NextState("RELEASE_GTP_RESET")
+                NextState("WAIT_GTP_RESET_DONE")
             )
         )
         # Release GTP reset and wait for GTP resetdone
         # (from UG482, GTP is reset on falling edge
         # of gttxreset)
-        startup_fsm.act("RELEASE_GTP_RESET",
+        startup_fsm.act("WAIT_GTP_RESET_DONE",
             txuserrdy.eq(1),
             If(txresetdone, NextState("ALIGN"))
         )
@@ -135,7 +134,7 @@ class GTPTXInit(Module):
         startup_fsm.act("READY",
             txuserrdy.eq(1),
             self.done.eq(1),
-            If(self.restart, NextState("RESET_ALL"))
+            If(self.restart, NextState("PLL_RESET"))
         )
 
 
@@ -213,7 +212,7 @@ class GTPRXInit(Module):
         pll_reset_timer = WaitTimer(pll_reset_cycles)
         self.submodules += pll_reset_timer
 
-        startup_fsm = ResetInserter()(FSM(reset_state="RESET_ALL"))
+        startup_fsm = ResetInserter()(FSM(reset_state="GTP_RESET"))
         self.submodules += startup_fsm
 
         ready_timer = WaitTimer(int(4e-3*sys_clk_freq))
@@ -226,7 +225,7 @@ class GTPRXInit(Module):
         cdr_stable_timer = WaitTimer(1024)
         self.submodules += cdr_stable_timer
 
-        startup_fsm.act("RESET_ALL",
+        startup_fsm.act("GTP_RESET",
             gtrxreset.eq(1),
             NextState("DRP_READ_ISSUE")
         )
@@ -301,6 +300,6 @@ class GTPRXInit(Module):
         startup_fsm.act("READY",
             rxuserrdy.eq(1),
             self.done.eq(1),
-            If(self.restart, NextState("RESET_ALL")
+            If(self.restart, NextState("GTP_RESET")
             )
         )
