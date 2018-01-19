@@ -90,6 +90,7 @@ class GTPTestSoC(BaseSoC):
         ]
 
         refclk125 = Signal()
+        refclk125_bufg = Signal()
         pll_fb = Signal()
         self.specials += [
             Instance("PLLE2_BASE",
@@ -103,10 +104,10 @@ class GTPTestSoC(BaseSoC):
                 # 125MHz
                 p_CLKOUT0_DIVIDE=8, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=refclk125
             ),
+            Instance("BUFG", i_I=refclk125, o_O=refclk125_bufg)
         ]
-        platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
 
-        qpll = GTPQuadPLL(refclk125, 125e6, 1.25e9, refclk_from_fabric=True)
+        qpll = GTPQuadPLL(refclk125_bufg, 125e6, 1.25e9)
         print(qpll)
         self.submodules += qpll
 

@@ -11,7 +11,7 @@ from transceiver.prbs import *
 
 
 class GTPQuadPLL(Module):
-    def __init__(self, refclk, refclk_freq, linerate, refclk_from_fabric=False):
+    def __init__(self, refclk, refclk_freq, linerate):
         self.clk = Signal()
         self.refclk = Signal()
         self.reset = Signal()
@@ -23,8 +23,7 @@ class GTPQuadPLL(Module):
         self.specials += \
             Instance("GTPE2_COMMON",
                 # common
-                i_GTREFCLK0=0 if refclk_from_fabric else refclk,
-                i_GTGREFCLK0=refclk if refclk_from_fabric else 0,
+                i_GTREFCLK0=refclk,
                 i_BGBYPASSB=1,
                 i_BGMONITORENB=1,
                 i_BGPDB=1,
