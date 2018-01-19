@@ -169,7 +169,6 @@ class GTPRXInit(Module):
         self.rxdlysreset = Signal()
         self.rxdlysresetdone = Signal()
         self.rxphalign = Signal()
-        self.rxphaligndone = Signal()
         self.rxdlyen = Signal()
         self.rxuserrdy = Signal()
         self.rxsyncdone = Signal()
@@ -206,13 +205,11 @@ class GTPRXInit(Module):
         plllock = Signal()
         rxresetdone = Signal()
         rxdlysresetdone = Signal()
-        rxphaligndone = Signal()
         rxsyncdone = Signal()
         self.specials += [
             MultiReg(self.plllock, plllock),
             MultiReg(self.rxresetdone, rxresetdone),
             MultiReg(self.rxdlysresetdone, rxdlysresetdone),
-            MultiReg(self.rxphaligndone, rxphaligndone),
             MultiReg(self.rxsyncdone, rxsyncdone)
         ]
 
@@ -249,11 +246,6 @@ class GTPRXInit(Module):
 
         cdr_stable_timer = WaitTimer(1024)
         self.submodules += cdr_stable_timer
-
-        rxphaligndone_r = Signal(reset=1)
-        rxphaligndone_rising = Signal()
-        self.sync += rxphaligndone_r.eq(rxphaligndone)
-        self.comb += rxphaligndone_rising.eq(rxphaligndone & ~rxphaligndone_r)
 
         startup_fsm.act("WAIT",
             self.debug.eq(0),
@@ -351,8 +343,7 @@ class GTPRXInit(Module):
         startup_fsm.act("WAIT_ALIGN_DONE",
             self.debug.eq(11),
             rxuserrdy.eq(1),
-            If(1,
-            #If(rxsyncdone, # FIXME!
+            If(rxsyncdone,
                 NextState("READY")
             )
         )

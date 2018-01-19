@@ -172,6 +172,7 @@ class GTP(Module, AutoCSR):
 
         txdata = Signal(20)
         rxdata = Signal(20)
+        rxphaligndone = Signal()
         self.specials += \
             Instance("GTPE2_CHANNEL",
                 i_GTRESETSEL=0,
@@ -252,11 +253,13 @@ class GTP(Module, AutoCSR):
                 o_RXRESETDONE=rx_init.rxresetdone,
                 i_RXDLYSRESET=rx_init.rxdlysreset,
                 o_RXDLYSRESETDONE=rx_init.rxdlysresetdone,
-                o_RXPHALIGNDONE=rx_init.rxphaligndone,
-                i_RXSYNCALLIN=rx_init.rxphaligndone,
+                o_RXPHALIGNDONE=rxphaligndone,
+                i_RXSYNCALLIN=rxphaligndone,
                 i_RXUSERRDY=rx_init.rxuserrdy,
                 i_RXSYNCIN=0,
-                i_RXSYNCMODE=0,
+                i_RXSYNCMODE=1,
+                p_RXSYNC_MULTILANE=0,
+                p_RXSYNC_OVRD=0,
                 o_RXSYNCDONE=rx_init.rxsyncdone,
                 p_RXPMARESET_TIME=0b11,
                 o_RXPMARESETDONE=rx_init.rx_pma_reset_done,
@@ -287,7 +290,7 @@ class GTP(Module, AutoCSR):
                 p_RX_DATA_WIDTH=20,
                 i_RXCOMMADETEN=1,
                 i_RXDLYBYPASS=0,
-                i_RXDDIEN=0,
+                i_RXDDIEN=1,
                 o_RXDISPERR=Cat(rxdata[9], rxdata[19]),
                 o_RXCHARISK=Cat(rxdata[8], rxdata[18]),
                 o_RXDATA=Cat(rxdata[:8], rxdata[10:18]),
