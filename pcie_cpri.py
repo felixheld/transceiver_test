@@ -21,6 +21,8 @@ _io = [
     ("rst_n", Pins("AA1"), IOStandard("LVCMOS25")),
     ("user_led", 0, Pins("AB1"), IOStandard("LVCMOS25")),
     ("user_led", 1, Pins("AB8"), IOStandard("LVCMOS25")),
+    ("user_btn", 0, Pins("AA1"), IOStandard("LVCMOS25")),
+    ("user_btn", 1, Pins("AB6"), IOStandard("LVCMOS25")),
     ("serial", 0,
         Subsignal("tx", Pins("Y6")),
         Subsignal("rx", Pins("AA6")),
@@ -70,7 +72,7 @@ class BaseSoC(SoCCore):
             ident="PCIe CPRI Transceiver Test Design",
             with_timer=False
         )
-        self.submodules.crg = CRG(self.sys_clk)
+        self.submodules.crg = CRG(self.sys_clk, ~platform.request("user_btn", 0))
         self.add_cpu_or_bridge(UARTWishboneBridge(platform.request("serial"),
                                                   self.sys_clk_freq, baudrate=115200))
         self.add_wb_master(self.cpu_or_bridge.wishbone)
@@ -159,7 +161,8 @@ class GTPTestSoC(BaseSoC):
         self.sync.rx += rx_counter.eq(rx_counter + 1)
         self.comb += rx_counter_led.eq(rx_counter[26])
 
-        self.comb += platform.request("user_led", 0).eq(tx_counter_led ^ rx_counter_led)
+        self.comb += platform.request("user_led", 0).eq(tx_counter_led)
+        self.comb += platform.request("user_led", 1).eq(rx_counter_led)
 
         if with_analyzer:
             analyzer_signals = [
