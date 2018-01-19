@@ -4,7 +4,7 @@ from litex.gen.genlib.resetsync import AsyncResetSynchronizer
 from litex.soc.interconnect.csr import *
 from litex.soc.cores.code_8b10b import Encoder, Decoder
 
-from transceiver.gtp_7series_init import GTPInit
+from transceiver.gtp_7series_init import GTPTXInit, GTPRXInit
 from transceiver.clock_aligner import BruteforceClockAligner
 
 from transceiver.prbs import *
@@ -148,10 +148,10 @@ class GTP(Module, AutoCSR):
         # # #
 
         # TX generates RTIO clock, init must be in system domain
-        tx_init = GTPInit(sys_clk_freq, False)
+        tx_init = GTPTXInit(sys_clk_freq)
         # RX receives restart commands from RTIO domain
         rx_init = ClockDomainsRenamer("tx")(
-            GTPInit(self.tx_clk_freq, True))
+            GTPRXInit(self.tx_clk_freq))
         self.submodules += tx_init, rx_init
         # debug
         self.tx_init = tx_init
