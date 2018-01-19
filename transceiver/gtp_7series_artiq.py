@@ -14,7 +14,6 @@ class GTPQuadPLL(Module):
         self.refclk = Signal()
         self.reset = Signal()
         self.lock = Signal()
-        self.config = self.compute_config(refclk_freq, linerate)
 
         # # #
 
@@ -29,9 +28,9 @@ class GTPQuadPLL(Module):
                 i_RCALENB=1,
 
                 # pll0
-                p_PLL0_FBDIV=self.config["n2"],
-                p_PLL0_FBDIV_45=self.config["n1"],
-                p_PLL0_REFCLK_DIV=self.config["m"],
+                p_PLL0_FBDIV=5,
+                p_PLL0_FBDIV_45=4,
+                p_PLL0_REFCLK_DIV=1,
                 i_PLL0LOCKEN=1,
                 i_PLL0PD=0,
                 i_PLL0REFCLKSEL=0b001,
@@ -43,60 +42,6 @@ class GTPQuadPLL(Module):
                 # pll1 (not used: power down)
                 i_PLL1PD=1,
              )
-
-    @staticmethod
-    def compute_config(refclk_freq, linerate):
-        for n1 in 4, 5:
-            for n2 in 1, 2, 3, 4, 5:
-                for m in 1, 2:
-                    vco_freq = refclk_freq*(n1*n2)/m
-                    if 1.6e9 <= vco_freq <= 3.3e9:
-                        for d in 1, 2, 4, 8, 16:
-                            current_linerate = vco_freq*2/d
-                            if current_linerate == linerate:
-                                return {"n1": n1, "n2": n2, "m": m, "d": d,
-                                        "vco_freq": vco_freq,
-                                        "clkin": refclk_freq,
-                                        "linerate": linerate}
-        msg = "No config found for {:3.2f} MHz refclk / {:3.2f} Gbps linerate."
-        raise ValueError(msg.format(refclk_freq/1e6, linerate/1e9))
-
-    def __repr__(self):
-        r = """
-GTPQuadPLL
-==============
-  overview:
-  ---------
-       +--------------------------------------------------+
-       |                                                  |
-       |   +-----+  +---------------------------+ +-----+ |
-       |   |     |  | Phase Frequency Detector  | |     | |
-CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
-       |   |     |  |       Loop Filter         | |     | |
-       |   +-----+  +---------------------------+ +--+--+ |
-       |              ^                              |    |
-       |              |    +-------+    +-------+    |    |
-       |              +----+  /N2  <----+  /N1  <----+    |
-       |                   +-------+    +-------+         |
-       +--------------------------------------------------+
-                            +-------+
-                   CLKOUT +->  2/D  +-> LINERATE
-                            +-------+
-  config:
-  -------
-    CLKIN    = {clkin}MHz
-    CLKOUT   = CLKIN x (N1 x N2) / M = {clkin}MHz x ({n1} x {n2}) / {m}
-             = {vco_freq}GHz
-    LINERATE = CLKOUT x 2 / D = {vco_freq}GHz x 2 / {d}
-             = {linerate}GHz
-""".format(clkin=self.config["clkin"]/1e6,
-           n1=self.config["n1"],
-           n2=self.config["n2"],
-           m=self.config["m"],
-           vco_freq=self.config["vco_freq"]/1e9,
-           d=self.config["d"],
-           linerate=self.config["linerate"]/1e9)
-        return r
 
 
 class GTP(Module):
@@ -126,13 +71,6 @@ class GTP(Module):
             tx_init.plllock.eq(qpll.lock),
             rx_init.plllock.eq(qpll.lock),
         ]
-
-        rxcdr_cfgs = {
-            1 : 0x0000107FE406001041010,
-            2 : 0x0000107FE206001041010,
-            4 : 0x0000107FE106001041010,
-            8 : 0x0000107FE086001041010
-        }
 
         txdata = Signal(20)
         rxdata = Signal(20)
@@ -179,7 +117,7 @@ class GTP(Module):
                 p_TXBUF_EN="FALSE",
                 p_TX_XCLK_SEL="TXUSR",
                 o_TXOUTCLK=self.txoutclk,
-                p_TXOUT_DIV=qpll.config["d"],
+                p_TXOUT_DIV=2,
                 i_TXSYSCLKSEL=0b00,
                 i_TXOUTCLKSEL=0b11,
 
@@ -229,13 +167,13 @@ class GTP(Module):
                 p_RX_CLK25_DIV=5,
                 p_TX_CLK25_DIV=5,
                 p_RX_XCLK_SEL="RXUSR",
-                p_RXOUT_DIV=qpll.config["d"],
+                p_RXOUT_DIV=2,
                 i_RXSYSCLKSEL=0b00,
                 i_RXOUTCLKSEL=0b010,
                 o_RXOUTCLK=self.rxoutclk,
                 i_RXUSRCLK=ClockSignal("rx"),
                 i_RXUSRCLK2=ClockSignal("rx"),
-                p_RXCDR_CFG=rxcdr_cfgs[qpll.config["d"]],
+                p_RXCDR_CFG=0x0000107FE206001041010,
                 p_RXPI_CFG1=1,
                 p_RXPI_CFG2=1,
 
@@ -270,7 +208,7 @@ class GTP(Module):
         self.clock_domains.cd_tx = ClockDomain()
         txoutclk_bufg = Signal()
         txoutclk_bufr = Signal()
-        tx_bufr_div = qpll.config["clkin"]/rtio_clk_freq
+        tx_bufr_div = 150.e6/rtio_clk_freq
         assert tx_bufr_div == int(tx_bufr_div)
         self.specials += [
             Instance("BUFG", i_I=self.txoutclk, o_O=txoutclk_bufg),

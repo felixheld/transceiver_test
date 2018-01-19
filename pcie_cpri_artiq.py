@@ -110,7 +110,6 @@ class GTPTestSoC(BaseSoC):
         ]
 
         qpll = GTPQuadPLL(refclk150_bufg, 150e6, 3.0e9)
-        print(qpll)
         self.submodules += qpll
 
         if medium == "sfp0":
