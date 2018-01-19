@@ -67,7 +67,7 @@ class GTPTXInit(Module):
         startup_fsm = ResetInserter()(FSM(reset_state="WAIT"))
         self.submodules += startup_fsm
 
-        ready_timer = WaitTimer(int(sys_clk_freq/1000))
+        ready_timer = WaitTimer(int(1e-3*sys_clk_freq))
         self.submodules += ready_timer
         self.comb += [
             ready_timer.wait.eq(~self.done & ~startup_fsm.reset),
@@ -240,7 +240,7 @@ class GTPRXInit(Module):
         startup_fsm = ResetInserter()(FSM(reset_state="WAIT"))
         self.submodules += startup_fsm
 
-        ready_timer = WaitTimer(int(sys_clk_freq/1000))
+        ready_timer = WaitTimer(int(4e-3*sys_clk_freq))
         self.submodules += ready_timer
         self.comb += [
             ready_timer.wait.eq(~self.done & ~startup_fsm.reset),
@@ -313,8 +313,7 @@ class GTPRXInit(Module):
         startup_fsm.act("WAIT_PMARST_FALL",
             self.debug.eq(6),
             rxuserrdy.eq(1),
-            If(1,
-            #If(rx_pma_reset_done_r & ~rx_pma_reset_done, # FIXME!
+            If(rx_pma_reset_done_r & ~rx_pma_reset_done,
                 NextState("DRP_RESTORE_ISSUE")
             )
         )
@@ -336,8 +335,7 @@ class GTPRXInit(Module):
             self.debug.eq(9),
             rxuserrdy.eq(1),
             cdr_stable_timer.wait.eq(1),
-            If(cdr_stable_timer.done,
-            #If(rxresetdone & cdr_stable_timer.done,
+            If(rxresetdone & cdr_stable_timer.done,
                 NextState("ALIGN")
             )
         )
@@ -362,5 +360,7 @@ class GTPRXInit(Module):
             self.debug.eq(12),
             rxuserrdy.eq(1),
             self.done.eq(1),
-            If(self.restart, NextState("RESET_ALL"))
+            If(self.restart,
+                NextState("RESET_ALL")
+            )
         )

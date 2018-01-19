@@ -370,7 +370,7 @@ class GTP(Module, AutoCSR):
 
         # clock alignment
         if clock_aligner:
-            clock_aligner = BruteforceClockAligner(0b0101111100, self.tx_clk_freq, check_period=6e-3)
+            clock_aligner = BruteforceClockAligner(0b0101111100, self.tx_clk_freq, check_period=10e-3)
             self.submodules += clock_aligner
             self.comb += [
                 clock_aligner.rxdata.eq(rxdata),

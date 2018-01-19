@@ -177,7 +177,7 @@ class GTPTestSoC(BaseSoC):
                 gtp.decoders[1].d,
                 gtp.decoders[1].k,
             ]
-            self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 2048, cd_ratio=2, cd="tx")
+            self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 256, cd_ratio=2, cd="tx")
 
     def do_exit(self, vns):
         if hasattr(self, "analyzer"):
