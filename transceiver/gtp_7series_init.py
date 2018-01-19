@@ -14,52 +14,49 @@ class GTPTXInit(Module):
         # GTP signals
         self.plllock = Signal()
         self.pllreset = Signal()
-        self.gtXxreset = Signal()
-        self.Xxresetdone = Signal()
-        self.Xxdlysreset = Signal()
-        self.Xxdlysresetdone = Signal()
-        self.Xxphinit = Signal()
-        self.Xxphinitdone = Signal()
-        self.Xxphalign = Signal()
-        self.Xxphaligndone = Signal()
-        self.Xxdlyen = Signal()
-        self.Xxuserrdy = Signal()
-        self.Xxsyncdone = Signal()
+        self.gttxreset = Signal()
+        self.txresetdone = Signal()
+        self.txdlysreset = Signal()
+        self.txdlysresetdone = Signal()
+        self.txphinit = Signal()
+        self.txphinitdone = Signal()
+        self.txphalign = Signal()
+        self.txphaligndone = Signal()
+        self.txdlyen = Signal()
+        self.txuserrdy = Signal()
 
         # # #
 
         # Double-latch transceiver asynch outputs
         plllock = Signal()
-        Xxresetdone = Signal()
-        Xxdlysresetdone = Signal()
-        Xxphinitdone = Signal()
-        Xxphaligndone = Signal()
-        Xxsyncdone = Signal()
+        txresetdone = Signal()
+        txdlysresetdone = Signal()
+        txphinitdone = Signal()
+        txphaligndone = Signal()
         self.specials += [
             MultiReg(self.plllock, plllock),
-            MultiReg(self.Xxresetdone, Xxresetdone),
-            MultiReg(self.Xxdlysresetdone, Xxdlysresetdone),
-            MultiReg(self.Xxphinitdone, Xxphinitdone),
-            MultiReg(self.Xxphaligndone, Xxphaligndone),
-            MultiReg(self.Xxsyncdone, Xxsyncdone)
+            MultiReg(self.txresetdone, txresetdone),
+            MultiReg(self.txdlysresetdone, txdlysresetdone),
+            MultiReg(self.txphinitdone, txphinitdone),
+            MultiReg(self.txphaligndone, txphaligndone)
         ]
 
         # Deglitch FSM outputs driving transceiver asynch inputs
-        gtXxreset = Signal()
-        Xxdlysreset = Signal()
-        Xxphinit = Signal()
-        Xxphalign = Signal()
-        Xxdlyen = Signal()
-        Xxuserrdy = Signal()
+        gttxreset = Signal()
+        txdlysreset = Signal()
+        txphinit = Signal()
+        txphalign = Signal()
+        txdlyen = Signal()
+        txuserrdy = Signal()
         self.sync += [
-            self.gtXxreset.eq(gtXxreset),
-            self.Xxdlysreset.eq(Xxdlysreset),
-            self.Xxphinit.eq(Xxphinit),
-            self.Xxphalign.eq(Xxphalign),
-            self.Xxdlyen.eq(Xxdlyen),
-            self.Xxuserrdy.eq(Xxuserrdy)
+            self.gttxreset.eq(gttxreset),
+            self.txdlysreset.eq(txdlysreset),
+            self.txphinit.eq(txphinit),
+            self.txphalign.eq(txphalign),
+            self.txdlyen.eq(txdlyen),
+            self.txuserrdy.eq(txuserrdy)
         ]
-        self.gtXxreset.attr.add("no_retiming")
+        self.gttxreset.attr.add("no_retiming")
 
         # After configuration, transceiver resets have to stay low for
         # at least 500ns (see AR43482)
@@ -77,10 +74,10 @@ class GTPTXInit(Module):
             startup_fsm.reset.eq(self.restart | ready_timer.done)
         ]
 
-        Xxphaligndone_r = Signal(reset=1)
-        Xxphaligndone_rising = Signal()
-        self.sync += Xxphaligndone_r.eq(Xxphaligndone)
-        self.comb += Xxphaligndone_rising.eq(Xxphaligndone & ~Xxphaligndone_r)
+        txphaligndone_r = Signal(reset=1)
+        txphaligndone_rising = Signal()
+        self.sync += txphaligndone_r.eq(txphaligndone)
+        self.comb += txphaligndone_rising.eq(txphaligndone & ~txphaligndone_r)
 
         startup_fsm.act("WAIT",
             self.debug.eq(0),
@@ -94,64 +91,64 @@ class GTPTXInit(Module):
         startup_fsm.act("RESET_ALL",
             self.debug.eq(0),
             self.pllreset.eq(1),
-            gtXxreset.eq(1),
+            gttxreset.eq(1),
             NextState("RELEASE_PLL_RESET")
         )
 
         # Release GTP reset and wait for GTP resetdone
         # (from UG482, GTP is reset on falling edge
-        # of gtXxreset)
+        # of gttxreset)
 
         startup_fsm.act("RELEASE_PLL_RESET",
             self.debug.eq(1),
-            gtXxreset.eq(1),
+            gttxreset.eq(1),
             If(plllock,
                 NextState("RELEASE_GTP_RESET")
             )
         )
         startup_fsm.act("RELEASE_GTP_RESET",
             self.debug.eq(2),
-            Xxuserrdy.eq(1),
-            If(Xxresetdone, NextState("ALIGN"))
+            txuserrdy.eq(1),
+            If(txresetdone, NextState("ALIGN"))
         )
         # Delay alignment
         startup_fsm.act("ALIGN",
             self.debug.eq(3),
-            Xxuserrdy.eq(1),
-            Xxdlysreset.eq(1),
-            If(Xxdlysresetdone,
+            txuserrdy.eq(1),
+            txdlysreset.eq(1),
+            If(txdlysresetdone,
                 NextState("PHINIT")
             )
         )
         # Phase init
         startup_fsm.act("PHINIT",
             self.debug.eq(4),
-            Xxuserrdy.eq(1),
-            Xxphinit.eq(1),
-            If(Xxphinitdone,
+            txuserrdy.eq(1),
+            txphinit.eq(1),
+            If(txphinitdone,
                 NextState("PHALIGN")
             )
         )
         # Phase align
         startup_fsm.act("PHALIGN",
             self.debug.eq(5),
-            Xxuserrdy.eq(1),
-            Xxphalign.eq(1),
-            If(Xxphaligndone_rising,
+            txuserrdy.eq(1),
+            txphalign.eq(1),
+            If(txphaligndone_rising,
                 NextState("DLYEN")
             )
         )
         startup_fsm.act("DLYEN",
             self.debug.eq(6),
-            Xxuserrdy.eq(1),
-            Xxdlyen.eq(1),
-            If(Xxphaligndone_rising,
+            txuserrdy.eq(1),
+            txdlyen.eq(1),
+            If(txphaligndone_rising,
                 NextState("READY")
             )
         )
         startup_fsm.act("READY",
             self.debug.eq(12),
-            Xxuserrdy.eq(1),
+            txuserrdy.eq(1),
             self.done.eq(1),
             If(self.restart, NextState("RESET_ALL"))
         )
@@ -167,17 +164,15 @@ class GTPRXInit(Module):
         # GTP signals
         self.plllock = Signal()
         self.pllreset = Signal()
-        self.gtXxreset = Signal()
-        self.Xxresetdone = Signal()
-        self.Xxdlysreset = Signal()
-        self.Xxdlysresetdone = Signal()
-        self.Xxphinit = Signal()
-        self.Xxphinitdone = Signal()
-        self.Xxphalign = Signal()
-        self.Xxphaligndone = Signal()
-        self.Xxdlyen = Signal()
-        self.Xxuserrdy = Signal()
-        self.Xxsyncdone = Signal()
+        self.gtrxreset = Signal()
+        self.rxresetdone = Signal()
+        self.rxdlysreset = Signal()
+        self.rxdlysresetdone = Signal()
+        self.rxphalign = Signal()
+        self.rxphaligndone = Signal()
+        self.rxdlyen = Signal()
+        self.rxuserrdy = Signal()
+        self.rxsyncdone = Signal()
 
         self.drpaddr = Signal(9)
         self.drpen = Signal()
@@ -209,36 +204,32 @@ class GTPRXInit(Module):
 
         # Double-latch transceiver asynch outputs
         plllock = Signal()
-        Xxresetdone = Signal()
-        Xxdlysresetdone = Signal()
-        Xxphinitdone = Signal()
-        Xxphaligndone = Signal()
-        Xxsyncdone = Signal()
+        rxresetdone = Signal()
+        rxdlysresetdone = Signal()
+        rxphaligndone = Signal()
+        rxsyncdone = Signal()
         self.specials += [
             MultiReg(self.plllock, plllock),
-            MultiReg(self.Xxresetdone, Xxresetdone),
-            MultiReg(self.Xxdlysresetdone, Xxdlysresetdone),
-            MultiReg(self.Xxphinitdone, Xxphinitdone),
-            MultiReg(self.Xxphaligndone, Xxphaligndone),
-            MultiReg(self.Xxsyncdone, Xxsyncdone)
+            MultiReg(self.rxresetdone, rxresetdone),
+            MultiReg(self.rxdlysresetdone, rxdlysresetdone),
+            MultiReg(self.rxphaligndone, rxphaligndone),
+            MultiReg(self.rxsyncdone, rxsyncdone)
         ]
 
         # Deglitch FSM outputs driving transceiver asynch inputs
-        gtXxreset = Signal()
-        Xxdlysreset = Signal()
-        Xxphinit = Signal()
-        Xxphalign = Signal()
-        Xxdlyen = Signal()
-        Xxuserrdy = Signal()
+        gtrxreset = Signal()
+        rxdlysreset = Signal()
+        rxphalign = Signal()
+        rxdlyen = Signal()
+        rxuserrdy = Signal()
         self.sync += [
-            self.gtXxreset.eq(gtXxreset),
-            self.Xxdlysreset.eq(Xxdlysreset),
-            self.Xxphinit.eq(Xxphinit),
-            self.Xxphalign.eq(Xxphalign),
-            self.Xxdlyen.eq(Xxdlyen),
-            self.Xxuserrdy.eq(Xxuserrdy)
+            self.gtrxreset.eq(gtrxreset),
+            self.rxdlysreset.eq(rxdlysreset),
+            self.rxphalign.eq(rxphalign),
+            self.rxdlyen.eq(rxdlyen),
+            self.rxuserrdy.eq(rxuserrdy)
         ]
-        self.gtXxreset.attr.add("no_retiming")
+        self.gtrxreset.attr.add("no_retiming")
 
         # After configuration, transceiver resets have to stay low for
         # at least 500ns (see AR43482)
@@ -259,10 +250,10 @@ class GTPRXInit(Module):
         cdr_stable_timer = WaitTimer(1024)
         self.submodules += cdr_stable_timer
 
-        Xxphaligndone_r = Signal(reset=1)
-        Xxphaligndone_rising = Signal()
-        self.sync += Xxphaligndone_r.eq(Xxphaligndone)
-        self.comb += Xxphaligndone_rising.eq(Xxphaligndone & ~Xxphaligndone_r)
+        rxphaligndone_r = Signal(reset=1)
+        rxphaligndone_rising = Signal()
+        self.sync += rxphaligndone_r.eq(rxphaligndone)
+        self.comb += rxphaligndone_rising.eq(rxphaligndone & ~rxphaligndone_r)
 
         startup_fsm.act("WAIT",
             self.debug.eq(0),
@@ -276,29 +267,29 @@ class GTPRXInit(Module):
         startup_fsm.act("RESET_ALL",
             self.debug.eq(0),
             self.pllreset.eq(1),
-            gtXxreset.eq(1),
+            gtrxreset.eq(1),
             NextState("RELEASE_PLL_RESET")
         )
 
         # Release GTP reset and wait for GTP resetdone
         # (from UG482, GTP is reset on falling edge
-        # of gtXxreset)
+        # of gtrxreset)
         startup_fsm.act("RELEASE_PLL_RESET",
             self.debug.eq(1),
-            gtXxreset.eq(1),
+            gtrxreset.eq(1),
             If(plllock,
                 NextState("DRP_READ_ISSUE")
             )
         )
         startup_fsm.act("DRP_READ_ISSUE",
             self.debug.eq(2),
-            gtXxreset.eq(1),
+            gtrxreset.eq(1),
             self.drpen.eq(1),
             NextState("DRP_READ_WAIT")
         )
         startup_fsm.act("DRP_READ_WAIT",
             self.debug.eq(3),
-            gtXxreset.eq(1),
+            gtrxreset.eq(1),
             If(self.drprdy,
                 NextValue(drpvalue, self.drpdo),
                 NextState("DRP_MOD_ISSUE")
@@ -306,7 +297,7 @@ class GTPRXInit(Module):
         )
         startup_fsm.act("DRP_MOD_ISSUE",
             self.debug.eq(4),
-            gtXxreset.eq(1),
+            gtrxreset.eq(1),
             drpmask.eq(1),
             self.drpen.eq(1),
             self.drpwe.eq(1),
@@ -314,14 +305,14 @@ class GTPRXInit(Module):
         )
         startup_fsm.act("DRP_MOD_WAIT",
             self.debug.eq(5),
-            gtXxreset.eq(1),
+            gtrxreset.eq(1),
             If(self.drprdy,
                 NextState("WAIT_PMARST_FALL")
             )
         )
         startup_fsm.act("WAIT_PMARST_FALL",
             self.debug.eq(6),
-            Xxuserrdy.eq(1),
+            rxuserrdy.eq(1),
             If(1,
             #If(rx_pma_reset_done_r & ~rx_pma_reset_done, # FIXME!
                 NextState("DRP_RESTORE_ISSUE")
@@ -329,47 +320,47 @@ class GTPRXInit(Module):
         )
         startup_fsm.act("DRP_RESTORE_ISSUE",
             self.debug.eq(7),
-            Xxuserrdy.eq(1),
+            rxuserrdy.eq(1),
             self.drpen.eq(1),
             self.drpwe.eq(1),
             NextState("DRP_RESTORE_WAIT")
         )
         startup_fsm.act("DRP_RESTORE_WAIT",
             self.debug.eq(8),
-            Xxuserrdy.eq(1),
+            rxuserrdy.eq(1),
             If(self.drprdy,
                 NextState("WAIT_GTP_RESET_DONE")
             )
         )
         startup_fsm.act("WAIT_GTP_RESET_DONE",
             self.debug.eq(9),
-            Xxuserrdy.eq(1),
+            rxuserrdy.eq(1),
             cdr_stable_timer.wait.eq(1),
             If(cdr_stable_timer.done,
-            #If(Xxresetdone & cdr_stable_timer.done,
+            #If(rxresetdone & cdr_stable_timer.done,
                 NextState("ALIGN")
             )
         )
         # Delay alignment
         startup_fsm.act("ALIGN",
             self.debug.eq(10),
-            Xxuserrdy.eq(1),
-            Xxdlysreset.eq(1),
-            If(Xxdlysresetdone,
+            rxuserrdy.eq(1),
+            rxdlysreset.eq(1),
+            If(rxdlysresetdone,
                 NextState("WAIT_ALIGN_DONE")
             )
         )
         startup_fsm.act("WAIT_ALIGN_DONE",
             self.debug.eq(11),
-            Xxuserrdy.eq(1),
+            rxuserrdy.eq(1),
             If(1,
-            #If(Xxsyncdone, # FIXME!
+            #If(rxsyncdone, # FIXME!
                 NextState("READY")
             )
         )
         startup_fsm.act("READY",
             self.debug.eq(12),
-            Xxuserrdy.eq(1),
+            rxuserrdy.eq(1),
             self.done.eq(1),
             If(self.restart, NextState("RESET_ALL"))
         )
