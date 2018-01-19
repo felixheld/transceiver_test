@@ -99,8 +99,8 @@ CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
         return r
 
 
-class GTP(Module, AutoCSR):
-    def __init__(self, qpll, tx_pads, rx_pads, sys_clk_freq):
+class GTP(Module):
+    def __init__(self, qpll, tx_pads, rx_pads, sys_clk_freq, rtio_clk_freq):
         self.submodules.encoder = encoder = ClockDomainsRenamer("tx")(
             Encoder(2, True))
         self.submodules.decoders = decoders = [ClockDomainsRenamer("rx")(
@@ -112,15 +112,13 @@ class GTP(Module, AutoCSR):
         self.txoutclk = Signal()
         self.rxoutclk = Signal()
 
-        self.tx_clk_freq = qpll.config["linerate"]/20
-
         # # #
 
         # TX generates RTIO clock, init must be in system domain
         tx_init = GTPTXInit(sys_clk_freq)
         # RX receives restart commands from RTIO domain
         rx_init = ClockDomainsRenamer("tx")(
-            GTPRXInit(self.tx_clk_freq))
+            GTPRXInit(rtio_clk_freq))
         self.submodules += tx_init, rx_init
 
         self.comb += [
@@ -129,7 +127,6 @@ class GTP(Module, AutoCSR):
             rx_init.plllock.eq(qpll.lock),
         ]
 
-        assert qpll.config["linerate"] < 6.6e9
         rxcdr_cfgs = {
             1 : 0x0000107FE406001041010,
             2 : 0x0000107FE206001041010,
@@ -273,7 +270,7 @@ class GTP(Module, AutoCSR):
         self.clock_domains.cd_tx = ClockDomain()
         txoutclk_bufg = Signal()
         txoutclk_bufr = Signal()
-        tx_bufr_div = qpll.config["clkin"]/self.tx_clk_freq
+        tx_bufr_div = qpll.config["clkin"]/rtio_clk_freq
         assert tx_bufr_div == int(tx_bufr_div)
         self.specials += [
             Instance("BUFG", i_I=self.txoutclk, o_O=txoutclk_bufg),
@@ -301,7 +298,7 @@ class GTP(Module, AutoCSR):
             self.comb += decoders[i].input.eq(rxdata[10*i:10*(i+1)])
 
         # clock alignment
-        clock_aligner = BruteforceClockAligner(0b0101111100, self.tx_clk_freq, check_period=10e-3)
+        clock_aligner = BruteforceClockAligner(0b0101111100, rtio_clk_freq, check_period=10e-3)
         self.submodules += clock_aligner
         self.comb += [
             clock_aligner.rxdata.eq(rxdata),
