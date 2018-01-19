@@ -123,8 +123,7 @@ class GTPTestSoC(BaseSoC):
             rx_pads = platform.request("sfp_rx", 1)
         else:
             raise ValueError
-        gtp = GTP(qpll, tx_pads, rx_pads, self.sys_clk_freq,
-            clock_aligner=True, internal_loopback=False)
+        gtp = GTP(qpll, tx_pads, rx_pads, self.sys_clk_freq)
         self.submodules += gtp
 
         counter = Signal(32)
@@ -166,8 +165,6 @@ class GTPTestSoC(BaseSoC):
 
         if with_analyzer:
             analyzer_signals = [
-                gtp.tx_init.restart,
-                gtp.rx_init.restart,
                 gtp.decoders[0].input,
                 gtp.decoders[0].d,
                 gtp.decoders[0].k,

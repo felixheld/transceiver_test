@@ -7,8 +7,6 @@ from litex.soc.cores.code_8b10b import Encoder, Decoder
 from transceiver.gtp_7series_init import GTPTXInit, GTPRXInit
 from transceiver.clock_aligner import BruteforceClockAligner
 
-from transceiver.prbs import *
-
 
 class GTPQuadPLL(Module):
     def __init__(self, refclk, refclk_freq, linerate):
@@ -102,23 +100,11 @@ CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
 
 
 class GTP(Module, AutoCSR):
-    def __init__(self, qpll, tx_pads, rx_pads, sys_clk_freq,
-                 clock_aligner=True, internal_loopback=False,
-                 tx_polarity=0, rx_polarity=0):
-        self.tx_produce_square_wave = CSRStorage()
-        self.tx_prbs_config = CSRStorage(2)
-
-        self.rx_prbs_config = CSRStorage(2)
-        self.rx_prbs_errors = CSRStatus(32)
-
-        # # #
-
-        self.submodules.encoder = ClockDomainsRenamer("tx")(
+    def __init__(self, qpll, tx_pads, rx_pads, sys_clk_freq):
+        self.submodules.encoder = encoder = ClockDomainsRenamer("tx")(
             Encoder(2, True))
-        self.decoders = [ClockDomainsRenamer("rx")(
+        self.submodules.decoders = decoders = [ClockDomainsRenamer("rx")(
             Decoder(True)) for _ in range(2)]
-        self.submodules += self.decoders
-
         self.rx_ready = Signal()
 
         # transceiver direct clock outputs
@@ -128,23 +114,6 @@ class GTP(Module, AutoCSR):
 
         self.tx_clk_freq = qpll.config["linerate"]/20
 
-        # control/status cdc
-        tx_produce_square_wave = Signal()
-        tx_prbs_config = Signal(2)
-
-        rx_prbs_config = Signal(2)
-        rx_prbs_errors = Signal(32)
-
-        self.specials += [
-            MultiReg(self.tx_produce_square_wave.storage, tx_produce_square_wave, "tx"),
-            MultiReg(self.tx_prbs_config.storage, tx_prbs_config, "tx"),
-        ]
-
-        self.specials += [
-            MultiReg(self.rx_prbs_config.storage, rx_prbs_config, "rx"),
-            MultiReg(rx_prbs_errors, self.rx_prbs_errors.status, "sys"), # FIXME
-        ]
-
         # # #
 
         # TX generates RTIO clock, init must be in system domain
@@ -153,13 +122,11 @@ class GTP(Module, AutoCSR):
         rx_init = ClockDomainsRenamer("tx")(
             GTPRXInit(self.tx_clk_freq))
         self.submodules += tx_init, rx_init
-        # debug
-        self.tx_init = tx_init
-        self.rx_init = rx_init
+
         self.comb += [
+            qpll.reset.eq(tx_init.pllreset),
             tx_init.plllock.eq(qpll.lock),
             rx_init.plllock.eq(qpll.lock),
-            qpll.reset.eq(tx_init.pllreset)
         ]
 
         assert qpll.config["linerate"] < 6.6e9
@@ -175,9 +142,9 @@ class GTP(Module, AutoCSR):
         rxphaligndone = Signal()
         self.specials += \
             Instance("GTPE2_CHANNEL",
+                # Reset modes
                 i_GTRESETSEL=0,
                 i_RESETOVRD=0,
-                p_SIM_RESET_SPEEDUP="FALSE",
 
                 # DRP
                 i_DRPADDR=rx_init.drpaddr,
@@ -245,9 +212,6 @@ class GTP(Module, AutoCSR):
                 i_TXBUFDIFFCTRL=0b100,
                 i_TXDIFFCTRL=0b1000,
 
-                # Internal Loopback
-                i_LOOPBACK=0b010 if internal_loopback else 0b000,
-
                 # RX Startup/Reset
                 i_GTRXRESET=rx_init.gtrxreset,
                 o_RXRESETDONE=rx_init.rxresetdone,
@@ -295,10 +259,6 @@ class GTP(Module, AutoCSR):
                 o_RXCHARISK=Cat(rxdata[8], rxdata[18]),
                 o_RXDATA=Cat(rxdata[:8], rxdata[10:18]),
 
-                # Polarity
-                i_TXPOLARITY=tx_polarity,
-                i_RXPOLARITY=rx_polarity,
-
                 # Pads
                 i_GTPRXP=rx_pads.p,
                 i_GTPRXN=rx_pads.n,
@@ -317,7 +277,6 @@ class GTP(Module, AutoCSR):
         assert tx_bufr_div == int(tx_bufr_div)
         self.specials += [
             Instance("BUFG", i_I=self.txoutclk, o_O=txoutclk_bufg),
-            # TODO: use MMCM instead?
             Instance("BUFR", i_I=txoutclk_bufg, o_O=txoutclk_bufr,
                 i_CE=1, p_BUFR_DIVIDE=str(int(tx_bufr_div))),
             Instance("BUFG", i_I=txoutclk_bufr, o_O=self.cd_tx.clk),
@@ -334,39 +293,18 @@ class GTP(Module, AutoCSR):
             AsyncResetSynchronizer(self.cd_rx, rx_reset_deglitched)
         ]
 
-        # tx data and prbs
-        self.submodules.tx_prbs = ClockDomainsRenamer("tx")(PRBSTX(20, True))
-        self.comb += self.tx_prbs.config.eq(tx_prbs_config)
-        self.comb += [
-            self.tx_prbs.i.eq(Cat(*[self.encoder.output[i] for i in range(2)])),
-            If(tx_produce_square_wave,
-                # square wave @ linerate/20 for scope observation
-                txdata.eq(0b11111111110000000000)
-            ).Else(
-                txdata.eq(self.tx_prbs.o)
-            )
-        ]
+        # tx data
+        self.comb += txdata.eq(Cat(*[self.encoder.output[i] for i in range(2)]))
 
-        # rx data and prbs
-        self.submodules.rx_prbs = ClockDomainsRenamer("rx")(PRBSRX(20, True))
-        self.comb += [
-            self.rx_prbs.config.eq(rx_prbs_config),
-            rx_prbs_errors.eq(self.rx_prbs.errors)
-        ]
-        self.comb += [
-            self.decoders[0].input.eq(rxdata[:10]),
-            self.decoders[1].input.eq(rxdata[10:]),
-            self.rx_prbs.i.eq(rxdata)
-        ]
+        # rx data
+        for i in range(2):
+            self.comb += decoders[i].input.eq(rxdata[10*i:10*(i+1)])
 
         # clock alignment
-        if clock_aligner:
-            clock_aligner = BruteforceClockAligner(0b0101111100, self.tx_clk_freq, check_period=10e-3)
-            self.submodules += clock_aligner
-            self.comb += [
-                clock_aligner.rxdata.eq(rxdata),
-                rx_init.restart.eq(clock_aligner.restart),
-                self.rx_ready.eq(clock_aligner.ready)
-            ]
-        else:
-            self.comb += self.rx_ready.eq(rx_init.done)
+        clock_aligner = BruteforceClockAligner(0b0101111100, self.tx_clk_freq, check_period=10e-3)
+        self.submodules += clock_aligner
+        self.comb += [
+            clock_aligner.rxdata.eq(rxdata),
+            rx_init.restart.eq(clock_aligner.restart),
+            self.rx_ready.eq(clock_aligner.ready)
+        ]
