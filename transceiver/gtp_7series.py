@@ -262,7 +262,7 @@ class GTP(Module, AutoCSR):
                 p_RXSYNC_OVRD=0,
                 o_RXSYNCDONE=rx_init.rxsyncdone,
                 p_RXPMARESET_TIME=0b11,
-                o_RXPMARESETDONE=rx_init.rx_pma_reset_done,
+                o_RXPMARESETDONE=rx_init.rxpmaresetdone,
 
                 # RX clock
                 p_RX_CLK25_DIV=5,

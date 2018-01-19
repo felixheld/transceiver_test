@@ -194,9 +194,7 @@ class GTPTestSoC(BaseSoC):
         if with_analyzer:
             analyzer_signals = [
                 gtp.tx_init.restart,
-                gtp.tx_init.debug,
                 gtp.rx_init.restart,
-                gtp.rx_init.debug,
                 gtp.decoders[0].input,
                 gtp.decoders[0].d,
                 gtp.decoders[0].k,

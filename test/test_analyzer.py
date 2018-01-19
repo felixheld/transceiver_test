@@ -10,7 +10,6 @@ wb.open()
 
 
 analyzer = LiteScopeAnalyzerDriver(wb.regs, "analyzer", debug=True)
-analyzer.configure_trigger(cond={"gtprxinit_debug": 11})
 analyzer.configure_trigger(cond={})
 analyzer.configure_subsampler(1)
 analyzer.run(offset=32, length=64)
