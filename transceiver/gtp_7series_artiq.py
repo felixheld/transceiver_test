@@ -1,3 +1,5 @@
+from collections import namedtuple
+
 from litex.gen import *
 from litex.gen.genlib.resetsync import AsyncResetSynchronizer
 
@@ -8,44 +10,57 @@ from transceiver.gtp_7series_init import GTPTXInit, GTPRXInit
 from transceiver.clock_aligner import BruteforceClockAligner
 
 
-class GTPQuadPLL(Module):
-    def __init__(self, refclk, refclk_freq, linerate):
-        self.clk = Signal()
-        self.refclk = Signal()
+QPLLSettings = namedtuple("QPLLSettings", "refclksel fbdiv fbdiv_45 refclk_div")
+
+
+class QPLLChannel:
+    def __init__(self):
         self.reset = Signal()
         self.lock = Signal()
+        self.clk = Signal()
+        self.refclk = Signal()
 
-        # # #
+
+class QPLL(Module):
+    def __init__(self, gtrefclk0, qpllsettings0, gtrefclk1=0, qpllsettings1=None):
+        self.channels = []
+
+        channel_settings = dict()
+        for i, qpllsettings in enumerate((qpllsettings0, qpllsettings1)):
+            def add_setting(k, v):
+                channel_settings[k.replace("PLLX", "PLL"+str(i))] = v
+
+            if qpllsettings is None:
+                add_setting("i_PLLXPD", 1)
+            else:
+                channel = QPLLChannel()
+                self.channels.append(channel)
+                add_setting("i_PLLXPD", 0)
+                add_setting("i_PLLXLOCKEN", 1)
+                add_setting("i_PLLXREFCLKSEL", qpllsettings.refclksel)
+                add_setting("p_PLLX_FBDIV", qpllsettings.fbdiv)
+                add_setting("p_PLLX_FBDIV_45", qpllsettings.fbdiv_45)
+                add_setting("p_PLLX_REFCLK_DIV", qpllsettings.refclk_div)
+                add_setting("i_PLLXRESET", channel.reset)
+                add_setting("o_PLLXLOCK", channel.lock)
+                add_setting("o_PLLXOUTCLK", channel.clk)
+                add_setting("o_PLLXOUTREFCLK", channel.refclk)
 
         self.specials += \
             Instance("GTPE2_COMMON",
-                # common
-                i_GTREFCLK0=refclk,
+                i_GTREFCLK0=gtrefclk0,
+                i_GTREFCLK1=gtrefclk1,
                 i_BGBYPASSB=1,
                 i_BGMONITORENB=1,
                 i_BGPDB=1,
                 i_BGRCALOVRD=0b11111,
                 i_RCALENB=1,
-
-                # pll0
-                p_PLL0_FBDIV=5,
-                p_PLL0_FBDIV_45=4,
-                p_PLL0_REFCLK_DIV=1,
-                i_PLL0LOCKEN=1,
-                i_PLL0PD=0,
-                i_PLL0REFCLKSEL=0b001,
-                i_PLL0RESET=self.reset,
-                o_PLL0LOCK=self.lock,
-                o_PLL0OUTCLK=self.clk,
-                o_PLL0OUTREFCLK=self.refclk,
-
-                # pll1 (not used: power down)
-                i_PLL1PD=1,
-             )
+                **channel_settings
+            )
 
 
 class GTP(Module):
-    def __init__(self, qpll, tx_pads, rx_pads, sys_clk_freq, rtio_clk_freq):
+    def __init__(self, qpll_channel, tx_pads, rx_pads, sys_clk_freq, rtio_clk_freq):
         self.submodules.encoder = encoder = ClockDomainsRenamer("tx")(
             Encoder(2, True))
         self.submodules.decoders = decoders = [ClockDomainsRenamer("rx")(
@@ -67,9 +82,9 @@ class GTP(Module):
         self.submodules += tx_init, rx_init
 
         self.comb += [
-            qpll.reset.eq(tx_init.pllreset),
-            tx_init.plllock.eq(qpll.lock),
-            rx_init.plllock.eq(qpll.lock),
+            qpll_channel.reset.eq(tx_init.pllreset),
+            tx_init.plllock.eq(qpll_channel.lock),
+            rx_init.plllock.eq(qpll_channel.lock),
         ]
 
         txdata = Signal(20)
@@ -110,8 +125,8 @@ class GTP(Module):
                 p_PD_TRANS_TIME_TO_P2=0x64,
 
                 # QPLL
-                i_PLL0CLK=qpll.clk,
-                i_PLL0REFCLK=qpll.refclk,
+                i_PLL0CLK=qpll_channel.clk,
+                i_PLL0REFCLK=qpll_channel.refclk,
 
                 # TX clock
                 p_TXBUF_EN="FALSE",

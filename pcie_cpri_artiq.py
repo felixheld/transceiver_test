@@ -11,7 +11,7 @@ from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
 from litex.soc.cores.uart import UARTWishboneBridge
 
-from transceiver.gtp_7series_artiq import GTPQuadPLL, GTP
+from transceiver.gtp_7series_artiq import *
 
 from litescope import LiteScopeAnalyzer
 
@@ -109,7 +109,12 @@ class GTPTestSoC(BaseSoC):
             Instance("BUFG", i_I=refclk150, o_O=refclk150_bufg)
         ]
 
-        qpll = GTPQuadPLL(refclk150_bufg, 150e6, 3.0e9)
+        qpll_settings = QPLLSettings(
+            refclksel=0b001,
+            fbdiv=5,
+            fbdiv_45=4,
+            refclk_div=1)
+        qpll = QPLL(refclk150_bufg, qpll_settings)
         self.submodules += qpll
 
         if medium == "sfp0":
@@ -123,7 +128,7 @@ class GTPTestSoC(BaseSoC):
         else:
             raise ValueError
         rtio_clk_freq = 3.0e9//20
-        gtp = GTP(qpll, tx_pads, rx_pads, self.sys_clk_freq, rtio_clk_freq)
+        gtp = GTP(qpll.channels[0], tx_pads, rx_pads, self.sys_clk_freq, rtio_clk_freq)
         self.submodules += gtp
 
         counter = Signal(32)
