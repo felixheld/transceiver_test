@@ -4,4 +4,3 @@ high priority:
 
 low priority:
 - fix RX equalization on KC705 (GTX)? (not working with all SFP modules/cables/fiber)
-- cleanup init on Artix7 (GTP) (working but not following recommandations)
