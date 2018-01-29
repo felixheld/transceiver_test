@@ -103,7 +103,7 @@ class GTPTestSoC(BaseSoC):
                 p_CLKFBOUT_MULT=12, p_DIVCLK_DIVIDE=1,
                 i_CLKIN1=self.sys_clk, i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
 
-                # 125MHz
+                # 150MHz
                 p_CLKOUT0_DIVIDE=8, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=refclk150
             ),
             Instance("BUFG", i_I=refclk150, o_O=refclk150_bufg)

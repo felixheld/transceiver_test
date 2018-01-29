@@ -41,13 +41,16 @@ class GTHTestSoC(BaseSoC):
     def __init__(self, platform, medium="sfp0"):
         BaseSoC.__init__(self, platform)
 
-        # 125MHz clock -> user_sma --> user_sma_mgt_refclk
+        # 300Mhz clock -> user_sma --> user_sma_mgt_refclk
+        clk300 = platform.request("clk300")
+        clk300_se = Signal()
+        self.specials += Instance("IBUFDS", i_I=clk300.p, i_IB=clk300.n, o_O=clk300_se)
         user_sma_clock_pads = platform.request("user_sma_clock")
         user_sma_clock = Signal()
         self.specials += [
             Instance("ODDRE1",
                 i_D1=0, i_D2=1, i_SR=0,
-                i_C=ClockSignal(),
+                i_C=clk300_se,
                 o_Q=user_sma_clock),
             Instance("OBUFDS",
                 i_I=user_sma_clock,
@@ -65,7 +68,7 @@ class GTHTestSoC(BaseSoC):
                 o_O=refclk)
         ]
 
-        cpll = GTHChannelPLL(refclk, 125e6, 1.25e9)
+        cpll = GTHChannelPLL(refclk, 300e6, 3.0e9)
         print(cpll)
         self.submodules += cpll
 
@@ -129,6 +132,7 @@ multigt_io = [
     ),
     ("sfps_tx_disable_n", 0, Pins("AL8 D28"), IOStandard("LVCMOS18")),
 ]
+
 
 class MultiGTHTestSoC(BaseSoC):
     def __init__(self, platform):
