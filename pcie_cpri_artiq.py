@@ -29,22 +29,18 @@ _io = [
         IOStandard("LVCMOS25")
     ),
     ("sfp_tx_disable_n", 0, Pins("AA20"), IOStandard("LVCMOS25")),
-    ("sfp_tx", 0,
-        Subsignal("p", Pins("D5")),
-        Subsignal("n", Pins("C5")),
-    ),
-    ("sfp_rx", 0,
-        Subsignal("p", Pins("D11")),
-        Subsignal("n", Pins("C11")),
+    ("sfp_data", 0,
+        Subsignal("txp", Pins("D5")),
+        Subsignal("txn", Pins("C5")),
+        Subsignal("rxp", Pins("D11")),
+        Subsignal("rxn", Pins("C11")),
     ),
     ("sfp_tx_disable_n", 1, Pins("V17"), IOStandard("LVCMOS25")),
-    ("sfp_tx", 1,
-        Subsignal("p", Pins("D7")),
-        Subsignal("n", Pins("C7")),
-    ),
-    ("sfp_rx", 1,
-        Subsignal("p", Pins("D9")),
-        Subsignal("n", Pins("C9")),
+    ("sfp_data", 1,
+        Subsignal("txp", Pins("D7")),
+        Subsignal("txn", Pins("C7")),
+        Subsignal("rxp", Pins("D9")),
+        Subsignal("rxn", Pins("C9")),
     ),
 ]
 
@@ -120,16 +116,14 @@ class GTPTestSoC(BaseSoC):
 
         if medium == "sfp0":
             self.comb += platform.request("sfp_tx_disable_n", 0).eq(1)
-            tx_pads = platform.request("sfp_tx", 0)
-            rx_pads = platform.request("sfp_rx", 0)
+            data_pads = platform.request("sfp_data", 0)
         elif medium == "sfp1":
             self.comb += platform.request("sfp_tx_disable_n", 1).eq(1)
-            tx_pads = platform.request("sfp_tx", 1)
-            rx_pads = platform.request("sfp_rx", 1)
+            data_pads = platform.request("sfp_data", 1)
         else:
             raise ValueError
         rtio_clk_freq = 3.0e9//20
-        gtp = GTP(qpll.channels[0], tx_pads, rx_pads, self.sys_clk_freq, rtio_clk_freq)
+        gtp = GTPSingle(qpll.channels[0], data_pads, self.sys_clk_freq, rtio_clk_freq, mode="master")
         self.submodules += gtp
 
         counter = Signal(32)

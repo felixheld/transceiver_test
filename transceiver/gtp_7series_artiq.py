@@ -14,7 +14,8 @@ QPLLSettings = namedtuple("QPLLSettings", "refclksel fbdiv fbdiv_45 refclk_div")
 
 
 class QPLLChannel:
-    def __init__(self):
+    def __init__(self, index):
+        self.index = index
         self.reset = Signal()
         self.lock = Signal()
         self.clk = Signal()
@@ -27,14 +28,15 @@ class QPLL(Module):
 
         channel_settings = dict()
         for i, qpllsettings in enumerate((qpllsettings0, qpllsettings1)):
+            channel = QPLLChannel(i)
+            self.channels.append(channel)
+
             def add_setting(k, v):
                 channel_settings[k.replace("PLLX", "PLL"+str(i))] = v
 
             if qpllsettings is None:
                 add_setting("i_PLLXPD", 1)
             else:
-                channel = QPLLChannel()
-                self.channels.append(channel)
                 add_setting("i_PLLXPD", 0)
                 add_setting("i_PLLXLOCKEN", 1)
                 add_setting("i_PLLXREFCLKSEL", qpllsettings.refclksel)
@@ -59,12 +61,14 @@ class QPLL(Module):
             )
 
 
-class GTP(Module):
-    def __init__(self, qpll_channel, tx_pads, rx_pads, sys_clk_freq, rtio_clk_freq):
+class GTPSingle(Module):
+    def __init__(self, qpll_channel, pads, sys_clk_freq, rtio_clk_freq, mode):
+        if mode != "master":
+            raise NotImplementedError
         self.submodules.encoder = encoder = ClockDomainsRenamer("tx")(
             Encoder(2, True))
         self.submodules.decoders = decoders = [ClockDomainsRenamer("rx")(
-            Decoder(True)) for _ in range(2)]
+            (Decoder(True))) for _ in range(2)]
         self.rx_ready = Signal()
 
         # transceiver direct clock outputs
@@ -77,8 +81,7 @@ class GTP(Module):
         # TX generates RTIO clock, init must be in system domain
         tx_init = GTPTXInit(sys_clk_freq)
         # RX receives restart commands from RTIO domain
-        rx_init = ClockDomainsRenamer("tx")(
-            GTPRXInit(rtio_clk_freq))
+        rx_init = ClockDomainsRenamer("tx")(GTPRXInit(rtio_clk_freq))
         self.submodules += tx_init, rx_init
 
         self.comb += [
@@ -90,8 +93,7 @@ class GTP(Module):
         txdata = Signal(20)
         rxdata = Signal(20)
         rxphaligndone = Signal()
-        self.specials += \
-            Instance("GTPE2_CHANNEL",
+        gtp_params = dict(
                 # Reset modes
                 i_GTRESETSEL=0,
                 i_RESETOVRD=0,
@@ -124,16 +126,11 @@ class GTP(Module):
                 p_PD_TRANS_TIME_NONE_P2=0x3c,
                 p_PD_TRANS_TIME_TO_P2=0x64,
 
-                # QPLL
-                i_PLL0CLK=qpll_channel.clk,
-                i_PLL0REFCLK=qpll_channel.refclk,
-
                 # TX clock
                 p_TXBUF_EN="FALSE",
                 p_TX_XCLK_SEL="TXUSR",
                 o_TXOUTCLK=self.txoutclk,
                 p_TXOUT_DIV=2,
-                i_TXSYSCLKSEL=0b00,
                 i_TXOUTCLKSEL=0b11,
 
                 # TX Startup/Reset
@@ -183,7 +180,6 @@ class GTP(Module):
                 p_TX_CLK25_DIV=5,
                 p_RX_XCLK_SEL="RXUSR",
                 p_RXOUT_DIV=2,
-                i_RXSYSCLKSEL=0b00,
                 i_RXOUTCLKSEL=0b010,
                 o_RXOUTCLK=self.rxoutclk,
                 i_RXUSRCLK=ClockSignal("rx"),
@@ -210,28 +206,41 @@ class GTP(Module):
                 o_RXDATA=Cat(rxdata[:8], rxdata[10:18]),
 
                 # Pads
-                i_GTPRXP=rx_pads.p,
-                i_GTPRXN=rx_pads.n,
-                o_GTPTXP=tx_pads.p,
-                o_GTPTXN=tx_pads.n
+                i_GTPRXP=pads.rxp,
+                i_GTPRXN=pads.rxn,
+                o_GTPTXP=pads.txp,
+                o_GTPTXN=pads.txn
             )
+        if qpll_channel.index == 0:
+            gtp_params.update(
+                i_RXSYSCLKSEL=0b00,
+                i_TXSYSCLKSEL=0b00,
+                i_PLL0CLK=qpll_channel.clk,
+                i_PLL0REFCLK=qpll_channel.refclk,
+                i_PLL1CLK=0,
+                i_PLL1REFCLK=0,
+            )
+        elif qpll_channel.index == 1:
+            gtp_params.update(
+                i_RXSYSCLKSEL=0b11,
+                i_TXSYSCLKSEL=0b11,
+                i_PLL0CLK=0,
+                i_PLL0REFCLK=0,
+                i_PLL1CLK=qpll_channel.clk,
+                i_PLL1REFCLK=qpll_channel.refclk,
+            )
+        else:
+            raise ValueError
+        self.specials += Instance("GTPE2_CHANNEL", **gtp_params)
 
         # tx clocking
         tx_reset_deglitched = Signal()
         tx_reset_deglitched.attr.add("no_retiming")
         self.sync += tx_reset_deglitched.eq(~tx_init.done)
         self.clock_domains.cd_tx = ClockDomain()
-        txoutclk_bufg = Signal()
-        txoutclk_bufr = Signal()
-        tx_bufr_div = 150.e6/rtio_clk_freq
-        assert tx_bufr_div == int(tx_bufr_div)
-        self.specials += [
-            Instance("BUFG", i_I=self.txoutclk, o_O=txoutclk_bufg),
-            Instance("BUFR", i_I=txoutclk_bufg, o_O=txoutclk_bufr,
-                i_CE=1, p_BUFR_DIVIDE=str(int(tx_bufr_div))),
-            Instance("BUFG", i_I=txoutclk_bufr, o_O=self.cd_tx.clk),
-            AsyncResetSynchronizer(self.cd_tx, tx_reset_deglitched)
-        ]
+        if mode == "master":
+            self.specials += Instance("BUFG", i_I=self.txoutclk, o_O=self.cd_tx.clk)
+        self.specials += AsyncResetSynchronizer(self.cd_tx, tx_reset_deglitched)
 
         # rx clocking
         rx_reset_deglitched = Signal()
@@ -244,7 +253,7 @@ class GTP(Module):
         ]
 
         # tx data
-        self.comb += txdata.eq(Cat(*[self.encoder.output[i] for i in range(2)]))
+        self.comb += txdata.eq(Cat(*[encoder.output[i] for i in range(2)]))
 
         # rx data
         for i in range(2):
@@ -258,3 +267,4 @@ class GTP(Module):
             rx_init.restart.eq(clock_aligner.restart),
             self.rx_ready.eq(clock_aligner.ready)
         ]
+
