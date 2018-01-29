@@ -108,6 +108,7 @@ class GTPTestSoC(BaseSoC):
             ),
             Instance("BUFG", i_I=refclk150, o_O=refclk150_bufg)
         ]
+        platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
 
         qpll = GTPQuadPLL(refclk150_bufg, 150e6, 3.0e9)
         print(qpll)
