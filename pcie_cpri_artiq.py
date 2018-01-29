@@ -79,7 +79,7 @@ class GTPTestSoC(BaseSoC):
         "analyzer": 20
     }
     csr_map.update(BaseSoC.csr_map)
-    def __init__(self, platform, medium="sfp0", loopback=False, with_analyzer=True):
+    def __init__(self, platform, medium="sfp0", loopback=True, with_analyzer=True):
         BaseSoC.__init__(self, platform)
 
         refclk100 = platform.request("clk100")
