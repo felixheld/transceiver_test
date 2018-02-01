@@ -79,7 +79,7 @@ class GTPTestSoC(BaseSoC):
         "analyzer": 20
     }
     csr_map.update(BaseSoC.csr_map)
-    def __init__(self, platform, medium="sfp0", loopback=False, with_analyzer=True):
+    def __init__(self, platform, medium="sfp2", loopback=False, with_analyzer=True):
         BaseSoC.__init__(self, platform)
 
         refclk50 = platform.request("clk50")
@@ -121,7 +121,7 @@ class GTPTestSoC(BaseSoC):
         else:
             raise ValueError
         gtp = GTP(qpll, tx_pads, rx_pads, self.sys_clk_freq,
-            clock_aligner=True, internal_loopback=False)
+            clock_aligner=True, internal_loopback=True)
         self.submodules += gtp
 
         counter = Signal(32)
