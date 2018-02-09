@@ -11,7 +11,7 @@ from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
 from litex.soc.cores.uart import UARTWishboneBridge
 
-from transceiver.gtp_7series import GTPQuadPLL, GTP
+from transceiver.gtp_7series_artiq import *
 
 from litescope import LiteScopeAnalyzer
 
@@ -28,22 +28,24 @@ _io = [
         IOStandard("LVCMOS25")
     ),
     ("sfp_tx_disable_n", 0, Pins("R14"), IOStandard("LVCMOS25")),
-    ("sfp_tx", 0,
-        Subsignal("p", Pins("D5")),
-        Subsignal("n", Pins("C5")),
+    ("sfp_data", 0,
+        Subsignal("txp", Pins("B4")),
+        Subsignal("txn", Pins("A4")),
+        Subsignal("rxp", Pins("B8")),
+        Subsignal("rxn", Pins("A8")),
     ),
-    ("sfp_rx", 0,
-        Subsignal("p", Pins("D11")),
-        Subsignal("n", Pins("C11")),
+    ("sfp_data", 1,
+        Subsignal("txp", Pins("D5")),
+        Subsignal("txn", Pins("C5")),
+        Subsignal("rxp", Pins("D11")),
+        Subsignal("rxn", Pins("C11")),
     ),
     ("sfp_tx_disable_n", 2, Pins("V17"), IOStandard("LVCMOS25")),
-    ("sfp_tx", 2,
-        Subsignal("p", Pins("B6")),
-        Subsignal("n", Pins("A6")),
-    ),
-    ("sfp_rx", 2,
-        Subsignal("p", Pins("B10")),
-        Subsignal("n", Pins("A10")),
+    ("sfp_data", 2,
+        Subsignal("txp", Pins("B6")),
+        Subsignal("txn", Pins("A6")),
+        Subsignal("rxp", Pins("B10")),
+        Subsignal("rxn", Pins("A10")),
     ),
 ]
 
@@ -82,7 +84,7 @@ class GTPTestSoC(BaseSoC):
         "analyzer": 20
     }
     csr_map.update(BaseSoC.csr_map)
-    def __init__(self, platform, medium="sfp2", loopback=False, with_analyzer=True):
+    def __init__(self, platform, medium="sfp0", loopback=False, with_analyzer=True):
         BaseSoC.__init__(self, platform)
 
         refclk50 = platform.request("clk50")
@@ -109,22 +111,27 @@ class GTPTestSoC(BaseSoC):
         ]
         platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
 
-        qpll = GTPQuadPLL(refclk150_bufg, 150e6, 3.0e9)
-        print(qpll)
+        qpll_settings = QPLLSettings(
+            refclksel=0b001,
+            fbdiv=5,
+            fbdiv_45=4,
+            refclk_div=1)
+        qpll = QPLL(refclk150_bufg, qpll_settings)
         self.submodules += qpll
 
         if medium == "sfp0":
             self.comb += platform.request("sfp_tx_disable_n", 0).eq(1)
-            tx_pads = platform.request("sfp_tx", 0)
-            rx_pads = platform.request("sfp_rx", 0)
+            data_pads = platform.request("sfp_data", 0)
+        elif medium == "sfp1":
+            self.comb += platform.request("sfp_tx_disable_n", 1).eq(1)
+            data_pads = platform.request("sfp_data", 1)
         elif medium == "sfp2":
             self.comb += platform.request("sfp_tx_disable_n", 2).eq(1)
-            tx_pads = platform.request("sfp_tx", 2)
-            rx_pads = platform.request("sfp_rx", 2)
+            data_pads = platform.request("sfp_data", 2)
         else:
             raise ValueError
-        gtp = GTP(qpll, tx_pads, rx_pads, self.sys_clk_freq,
-            clock_aligner=True, internal_loopback=False)
+        rtio_clk_freq = 3.0e9//20
+        gtp = GTPSingle(qpll.channels[0], data_pads, self.sys_clk_freq, rtio_clk_freq, mode="master")
         self.submodules += gtp
 
         counter = Signal(32)
@@ -144,8 +151,8 @@ class GTPTestSoC(BaseSoC):
         gtp.cd_tx.clk.attr.add("keep")
         gtp.cd_rx.clk.attr.add("keep")
         platform.add_period_constraint(self.crg.cd_sys.clk, 20)
-        platform.add_period_constraint(gtp.cd_tx.clk, 1e9/gtp.tx_clk_freq)
-        platform.add_period_constraint(gtp.cd_rx.clk, 1e9/gtp.tx_clk_freq)
+        platform.add_period_constraint(gtp.cd_tx.clk, 1e9/rtio_clk_freq)
+        platform.add_period_constraint(gtp.cd_rx.clk, 1e9/rtio_clk_freq)
         self.platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
             gtp.cd_tx.clk,
@@ -167,8 +174,6 @@ class GTPTestSoC(BaseSoC):
 
         if with_analyzer:
             analyzer_signals = [
-                gtp.tx_init.restart,
-                gtp.rx_init.restart,
                 gtp.decoders[0].input,
                 gtp.decoders[0].d,
                 gtp.decoders[0].k,
