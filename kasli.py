@@ -19,6 +19,9 @@ from litescope import LiteScopeAnalyzer
 _io = [
     ("clk50", 0, Pins("W19"), IOStandard("LVCMOS25")),
     ("user_led", 0, Pins("T16"), IOStandard("LVCMOS25")),
+    ("user_led", 1, Pins("P16"), IOStandard("LVCMOS25")), # sfp_ctl0
+    ("user_led", 2, Pins("R19"), IOStandard("LVCMOS25")), # sfp_ctl1
+    ("user_led", 3, Pins("P19"), IOStandard("LVCMOS25")), # sfp_ctl2
     ("serial", 0,
         Subsignal("rx", Pins("N13")),
         Subsignal("tx", Pins("N17")),
@@ -121,7 +124,7 @@ class GTPTestSoC(BaseSoC):
         else:
             raise ValueError
         gtp = GTP(qpll, tx_pads, rx_pads, self.sys_clk_freq,
-            clock_aligner=True, internal_loopback=True)
+            clock_aligner=True, internal_loopback=False)
         self.submodules += gtp
 
         counter = Signal(32)
@@ -135,7 +138,7 @@ class GTPTestSoC(BaseSoC):
         if loopback:
             self.comb += gtp.encoder.d[1].eq(gtp.decoders[1].d)
         else:
-            self.comb += gtp.encoder.d[1].eq(counter)
+            self.comb += gtp.encoder.d[1].eq(counter[26:])
 
         self.crg.cd_sys.clk.attr.add("keep")
         gtp.cd_tx.clk.attr.add("keep")
@@ -159,6 +162,8 @@ class GTPTestSoC(BaseSoC):
         self.comb += rx_counter_led.eq(rx_counter[26])
 
         self.comb += platform.request("user_led", 0).eq(tx_counter_led ^ rx_counter_led)
+        for i in range(3):
+            self.comb += platform.request("user_led", i + 1).eq(gtp.decoders[1].d[i])
 
         if with_analyzer:
             analyzer_signals = [
