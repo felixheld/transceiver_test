@@ -221,6 +221,7 @@ class GTP(Module, AutoCSR):
 
                 # TX Startup/Reset
                 i_GTTXRESET=tx_init.gttxreset,
+                i_RXPD=Cat(rx_init.gtrxpd, rx_init.gtrxpd),
                 o_TXRESETDONE=tx_init.txresetdone,
                 p_TXSYNC_OVRD=1,
                 i_TXDLYSRESET=tx_init.txdlysreset,
