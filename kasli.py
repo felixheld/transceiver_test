@@ -144,7 +144,7 @@ class GTPTestSoC(BaseSoC):
         if loopback:
             self.comb += gtp.encoder.d[1].eq(gtp.decoders[1].d)
         else:
-            self.comb += gtp.encoder.d[1].eq(counter[26:])
+            self.comb += gtp.encoder.d[1].eq(counter)
 
         self.crg.cd_sys.clk.attr.add("keep")
         gtp.cd_tx.clk.attr.add("keep")
