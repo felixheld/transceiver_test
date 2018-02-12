@@ -745,3 +745,55 @@ class GTPSingle(Module):
             self.rx_ready.eq(clock_aligner.ready)
         ]
 
+
+class ChannelInterface:
+    def __init__(self, encoder, decoders):
+        self.rx_ready = Signal()
+        self.encoder = encoder
+        self.decoders = decoders
+
+
+class TransceiverInterface:
+    def __init__(self, channel_interfaces):
+        self.clock_domains.cd_gtp = ClockDomain()
+        for i in range(len(channel_interfaces)):
+            name = "rx" + str(i)
+            setattr(self.clock_domains, "cd_"+name, ClockDomain(name=name))
+        self.channels = channel_interfaces
+
+
+class GTP(Module, TransceiverInterface):
+    def __init__(self, qpll_channel, data_pads, sys_clk_freq, rtio_clk_freq, master=0):
+        self.nchannels = nchannels = len(data_pads)
+        self.gtps = []
+        if nchannels > 1:
+            raise NotImplementedError
+
+        # # #
+
+        rtio_tx_clk = Signal()
+        channel_interfaces = []
+        for i in range(nchannels):
+            mode = "master" if i == master else "slave"
+            gtp = GTPSingle(qpll_channel, data_pads[i], sys_clk_freq, rtio_clk_freq, mode)
+            if mode == "master":
+                self.comb += rtio_tx_clk.eq(gtp.cd_tx.clk)
+            else:
+                self.comb += gtp.cd_tx.clk.eq(rtio_tx_clk)
+            self.gtps.append(gtp)
+            setattr(self.submodules, "gtp"+str(i), gtp)
+            channel_interface = ChannelInterface(gtp.encoder, gtp.decoders)
+            self.comb += channel_interface.rx_ready.eq(gtp.rx_ready)
+            channel_interfaces.append(channel_interface)
+
+        TransceiverInterface.__init__(self, channel_interfaces)
+
+        self.comb += [
+            self.cd_gtp.clk.eq(self.gtps[master].cd_tx.clk),
+            self.cd_gtp.rst.eq(reduce(or_, [gtp.cd_tx.rst for gtp in self.gtps]))
+        ]
+        for i in range(nchannels):
+            self.comb += [
+                getattr(self, "cd_rx" + str(i)).clk.eq(self.gtps[i].cd_rx.clk),
+                getattr(self, "cd_rx" + str(i)).rst.eq(self.gtps[i].cd_rx.rst)
+            ]

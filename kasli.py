@@ -122,42 +122,42 @@ class GTPTestSoC(BaseSoC):
 
         if medium == "sfp0":
             self.comb += platform.request("sfp_tx_disable", 0).eq(0)
-            data_pads = platform.request("sfp_data", 0)
+            data_pads = [platform.request("sfp_data", 0)]
         elif medium == "sfp1":
             self.comb += platform.request("sfp_tx_disable", 1).eq(0)
-            data_pads = platform.request("sfp_data", 1)
+            data_pads = [platform.request("sfp_data", 1)]
         elif medium == "sfp2":
             self.comb += platform.request("sfp_tx_disable", 2).eq(0)
-            data_pads = platform.request("sfp_data", 2)
+            data_pads = [platform.request("sfp_data", 2)]
         else:
             raise ValueError
         rtio_clk_freq = 3.0e9//20
-        gtp = GTPSingle(qpll.channels[0], data_pads, self.sys_clk_freq, rtio_clk_freq, mode="master")
+        gtp = GTP(qpll.channels[0], data_pads, self.sys_clk_freq, rtio_clk_freq)
         self.submodules += gtp
 
         counter = Signal(32)
         self.sync.tx += counter.eq(counter + 1)
 
         self.comb += [
-            gtp.encoder.k[0].eq(1),
-            gtp.encoder.d[0].eq((5 << 5) | 28),
-            gtp.encoder.k[1].eq(0)
+            gtp.channels[0].encoder.k[0].eq(1),
+            gtp.channels[0].encoder.d[0].eq((5 << 5) | 28),
+            gtp.channels[0].encoder.k[1].eq(0)
         ]
         if loopback:
-            self.comb += gtp.encoder.d[1].eq(gtp.decoders[1].d)
+            self.comb += gtp.channels[0].encoder.d[1].eq(gtp.channels[0].decoders[1].d)
         else:
-            self.comb += gtp.encoder.d[1].eq(counter[26:])
+            self.comb += gtp.channels[0].encoder.d[1].eq(counter[26:])
 
         self.crg.cd_sys.clk.attr.add("keep")
-        gtp.cd_tx.clk.attr.add("keep")
-        gtp.cd_rx.clk.attr.add("keep")
+        gtp.gtps[0].cd_tx.clk.attr.add("keep")
+        gtp.gtps[0].cd_rx.clk.attr.add("keep")
         platform.add_period_constraint(self.crg.cd_sys.clk, 20)
-        platform.add_period_constraint(gtp.cd_tx.clk, 1e9/rtio_clk_freq)
-        platform.add_period_constraint(gtp.cd_rx.clk, 1e9/rtio_clk_freq)
+        platform.add_period_constraint(gtp.gtps[0].cd_tx.clk, 1e9/rtio_clk_freq)
+        platform.add_period_constraint(gtp.gtps[0].cd_rx.clk, 1e9/rtio_clk_freq)
         self.platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
-            gtp.cd_tx.clk,
-            gtp.cd_rx.clk)
+            gtp.gtps[0].cd_tx.clk,
+            gtp.gtps[0].cd_rx.clk)
 
         tx_counter_led = Signal()
         tx_counter = Signal(32)
@@ -171,16 +171,16 @@ class GTPTestSoC(BaseSoC):
 
         self.comb += platform.request("user_led", 0).eq(tx_counter_led ^ rx_counter_led)
         for i in range(3):
-            self.comb += platform.request("user_led", i + 1).eq(gtp.decoders[1].d[i])
+            self.comb += platform.request("user_led", i + 1).eq(gtp.gtps[0].decoders[1].d[i])
 
         if with_analyzer:
             analyzer_signals = [
-                gtp.decoders[0].input,
-                gtp.decoders[0].d,
-                gtp.decoders[0].k,
-                gtp.decoders[1].input,
-                gtp.decoders[1].d,
-                gtp.decoders[1].k,
+                gtp.gtps[0].decoders[0].input,
+                gtp.gtps[0].decoders[0].d,
+                gtp.gtps[0].decoders[0].k,
+                gtp.gtps[0].decoders[1].input,
+                gtp.gtps[0].decoders[1].d,
+                gtp.gtps[0].decoders[1].k,
             ]
             self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 256, cd_ratio=4, cd="rx")
 
