@@ -633,29 +633,61 @@ class GTPSingle(Module):
             i_TXDLYOVRDEN                    =0,
             i_TXDLYSRESET                    =tx_init.txdlysreset,
             o_TXDLYSRESETDONE                =tx_init.txdlysresetdone,
+            i_TXDLYUPDOWN                    =0,
+            i_TXPHALIGN                      =tx_init.txphalign,
+            o_TXPHALIGNDONE                  =tx_init.txphaligndone,
+            i_TXPHALIGNEN                    =1,
+            i_TXPHDLYPD                      =0,
+            i_TXPHDLYRESET                   =0,
+            i_TXPHINIT                       =tx_init.txphinit,
+            o_TXPHINITDONE                   =tx_init.txphinitdone,
+            i_TXPHOVRDEN                     =0,
+            # Transmit Ports - TX Buffer Ports
+            #o_TXBUFSTATUS                    =,
+            # Transmit Ports - TX Buffer and Phase Alignment Ports
+            i_TXSYNCALLIN                    =0,
+            #o_TXSYNCDONE                     =,
+            #i_TXSYNCIN                       =0,
+            #i_TXSYNCMODE                     =0,
+            #o_TXSYNCOUT                      =,
+            # Transmit Ports - TX Configurable Driver Ports
+            o_GTPTXN                         =pads.txn,
+            o_GTPTXP                         =pads.txp,
+            i_TXBUFDIFFCTRL                  =0b100,
+            i_TXDEEMPH                       =0,
+            i_TXDIFFCTRL                     =0b1000,
+            i_TXDIFFPD                       =0,
+            i_TXINHIBIT                      =0,
+            i_TXMAINCURSOR                   =0b0000000,
+            i_TXPISOPD                       =0,
+            # Transmit Ports - TX Fabric Clock Output Control Ports
+            o_TXOUTCLK                       =self.txoutclk,
+            #o_TXOUTCLKFABRIC                 =,
+            #o_TXOUTCLKPCS                    =,
+            i_TXOUTCLKSEL                    =0b011,
+            #o_TXRATEDONE                     =,
+            # Transmit Ports - TX Gearbox Ports
+            #o_TXGEARBOXREADY                 =,
+            i_TXHEADER                       =0,
+            i_TXSEQUENCE                     =0,
+            i_TXSTARTSEQ                     =0,
+            # Transmit Ports - TX Initialization and Reset Ports
+            i_TXPCSRESET                     =0,
+            i_TXPMARESET                     =0,
+            o_TXRESETDONE                    =tx_init.txresetdone,
+            # Transmit Ports - TX OOB signalling Ports
+            #o_TXCOMFINISH                    =,
+            i_TXCOMINIT                      =0,
+            i_TXCOMSAS                       =0,
+            i_TXCOMWAKE                      =0,
+            i_TXPDELECIDLEMODE               =0,
+            # Transmit Ports - TX Polarity Control Ports
+            i_TXPOLARITY                     =0,
+            # Transmit Ports - TX Receiver Detection Ports
+            i_TXDETECTRX                     =0,
+            # Transmit Ports - pattern Generator Ports
+            i_TXPRBSSEL                      =0
         )
-        gtp_params.update(
-                # TX clock
-                o_TXOUTCLK=self.txoutclk,
-                p_TXOUT_DIV=2,
-                i_TXOUTCLKSEL=0b11,
-
-                # TX Startup/Reset
-                o_TXRESETDONE=tx_init.txresetdone,
-                i_TXPHINIT=tx_init.txphinit,
-                o_TXPHINITDONE=tx_init.txphinitdone,
-                i_TXPHALIGNEN=1,
-                i_TXPHALIGN=tx_init.txphalign,
-                o_TXPHALIGNDONE=tx_init.txphaligndone,
-
-                # TX electrical
-                i_TXBUFDIFFCTRL=0b100,
-                i_TXDIFFCTRL=0b1000,
-
-                # Pads
-                o_GTPTXP=pads.txp,
-                o_GTPTXN=pads.txn
-            )
         if qpll_channel.index == 0:
             gtp_params.update(
                 i_RXSYSCLKSEL=0b00,
