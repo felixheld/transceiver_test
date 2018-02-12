@@ -27,21 +27,21 @@ _io = [
         Subsignal("tx", Pins("N17")),
         IOStandard("LVCMOS25")
     ),
-    ("sfp_tx_disable_n", 0, Pins("R14"), IOStandard("LVCMOS25")),
+    ("sfp_tx_disable", 0, Pins("R14"), IOStandard("LVCMOS25")),
     ("sfp_data", 0,
         Subsignal("txp", Pins("B4")),
         Subsignal("txn", Pins("A4")),
         Subsignal("rxp", Pins("B8")),
         Subsignal("rxn", Pins("A8")),
     ),
-    ("sfp_tx_disable_n", 1, Pins("R17"), IOStandard("LVCMOS25")),
+    ("sfp_tx_disable", 1, Pins("R17"), IOStandard("LVCMOS25")),
     ("sfp_data", 1,
         Subsignal("txp", Pins("D5")),
         Subsignal("txn", Pins("C5")),
         Subsignal("rxp", Pins("D11")),
         Subsignal("rxn", Pins("C11")),
     ),
-    ("sfp_tx_disable_n", 2, Pins("V17"), IOStandard("LVCMOS25")),
+    ("sfp_tx_disable", 2, Pins("U21"), IOStandard("LVCMOS25")),
     ("sfp_data", 2,
         Subsignal("txp", Pins("B6")),
         Subsignal("txn", Pins("A6")),
@@ -121,13 +121,13 @@ class GTPTestSoC(BaseSoC):
         self.submodules += qpll
 
         if medium == "sfp0":
-            self.comb += platform.request("sfp_tx_disable_n", 0).eq(1)
+            self.comb += platform.request("sfp_tx_disable", 0).eq(0)
             data_pads = platform.request("sfp_data", 0)
         elif medium == "sfp1":
-            self.comb += platform.request("sfp_tx_disable_n", 1).eq(1)
+            self.comb += platform.request("sfp_tx_disable", 1).eq(0)
             data_pads = platform.request("sfp_data", 1)
         elif medium == "sfp2":
-            self.comb += platform.request("sfp_tx_disable_n", 2).eq(1)
+            self.comb += platform.request("sfp_tx_disable", 2).eq(0)
             data_pads = platform.request("sfp_data", 2)
         else:
             raise ValueError
