@@ -34,6 +34,7 @@ _io = [
         Subsignal("rxp", Pins("B8")),
         Subsignal("rxn", Pins("A8")),
     ),
+    ("sfp_tx_disable_n", 1, Pins("R17"), IOStandard("LVCMOS25")),
     ("sfp_data", 1,
         Subsignal("txp", Pins("D5")),
         Subsignal("txn", Pins("C5")),
