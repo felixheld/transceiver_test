@@ -6,11 +6,12 @@ from litex.gen.genlib.cdc import MultiReg
 
 
 class PRBSGenerator(Module):
-    def __init__(self, n_out, n_state=23, taps=[17, 22]):
+    def __init__(self, n_out, taps=[17, 22]):
         self.o = Signal(n_out)
 
         # # #s
 
+        n_state = max(taps) + 1
         state = Signal(n_state, reset=1)
         curval = [state[i] for i in range(n_state)]
         curval += [0]*(n_out - n_state)
@@ -27,17 +28,17 @@ class PRBSGenerator(Module):
 
 class PRBS7Generator(PRBSGenerator):
     def __init__(self, n_out):
-        PRBSGenerator.__init__(self, n_out, n_state=7, taps=[5, 6])
+        PRBSGenerator.__init__(self, n_out, taps=[5, 6])
 
 
 class PRBS15Generator(PRBSGenerator):
     def __init__(self, n_out):
-        PRBSGenerator.__init__(self, n_out, n_state=15, taps=[13, 14])
+        PRBSGenerator.__init__(self, n_out, taps=[13, 14])
 
 
 class PRBS31Generator(PRBSGenerator):
     def __init__(self, n_out):
-        PRBSGenerator.__init__(self, n_out, n_state=31, taps=[27, 30])
+        PRBSGenerator.__init__(self, n_out, taps=[27, 30])
 
 
 class PRBSTX(Module):
@@ -84,12 +85,13 @@ class PRBSTX(Module):
 
 
 class PRBSChecker(Module):
-    def __init__(self, n_in, n_state=23, taps=[17, 22]):
+    def __init__(self, n_in, taps=[17, 22]):
         self.i = Signal(n_in)
         self.errors = Signal(n_in)
 
         # # #
 
+        n_state = max(taps) + 1
         state = Signal(n_state, reset=1)
         curval = [state[i] for i in range(n_state)]
         for i in reversed(range(n_in)):
@@ -103,17 +105,17 @@ class PRBSChecker(Module):
 
 class PRBS7Checker(PRBSChecker):
     def __init__(self, n_out):
-        PRBSChecker.__init__(self, n_out, n_state=7, taps=[5, 6])
+        PRBSChecker.__init__(self, n_out, taps=[5, 6])
 
 
 class PRBS15Checker(PRBSChecker):
     def __init__(self, n_out):
-        PRBSChecker.__init__(self, n_out, n_state=15, taps=[13, 14])
+        PRBSChecker.__init__(self, n_out, taps=[13, 14])
 
 
 class PRBS31Checker(PRBSChecker):
     def __init__(self, n_out):
-        PRBSChecker.__init__(self, n_out, n_state=31, taps=[27, 30])
+        PRBSChecker.__init__(self, n_out, taps=[27, 30])
 
 
 class PRBSRX(Module):
