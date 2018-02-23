@@ -14,7 +14,7 @@ TODO:
 - use cyc field
 """
 
-from litex.gen import *
+from migen import *
 
 from litex.soc.interconnect import stream
 from litex.soc.interconnect import wishbone

@@ -1,8 +1,8 @@
 from math import ceil
 
-from litex.gen import *
-from litex.gen.genlib.cdc import MultiReg, PulseSynchronizer
-from litex.gen.genlib.misc import WaitTimer
+from migen import *
+from migen.genlib.cdc import MultiReg, PulseSynchronizer
+from migen.genlib.misc import WaitTimer
 
 
 class GTXInit(Module):

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 import sys
 
-from litex.gen import *
+from migen import *
 from litex.boards.platforms import kc705
 from litex.build.xilinx import VivadoProgrammer
 
-from litex.gen.genlib.io import CRG
+from migen.genlib.io import CRG
 
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *

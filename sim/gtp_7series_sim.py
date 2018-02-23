@@ -4,11 +4,11 @@ import os
 import sys
 sys.path.append("../")
 
-from litex.gen import *
+from migen import *
 from litex.build.generic_platform import *
 from litex.build.xilinx import XilinxPlatform
 
-from litex.gen.genlib.io import CRG
+from migen.genlib.io import CRG
 
 from transceiver.gtp_7series import GTPQuadPLL, GTP
 

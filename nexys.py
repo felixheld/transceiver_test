@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 import sys
 
-from litex.gen import *
+from migen import *
 from litex.soc.interconnect.csr import *
-from litex.gen.genlib.resetsync import AsyncResetSynchronizer
+from migen.genlib.resetsync import AsyncResetSynchronizer
 from litex.build.generic_platform import *
 from litex.boards.platforms import nexys_video as nexys
 

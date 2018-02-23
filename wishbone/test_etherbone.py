@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from litex.gen import *
+from migen import *
 
 import sys
 sys.path.append("../")
